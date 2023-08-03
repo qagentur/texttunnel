@@ -1,0 +1,23 @@
+# pyproject.toml
+
+[build-system]
+requires      = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "texttunnel"
+version = "0.1.0"
+description = "Efficient text processing with the OpenAI API"
+authors = ["Q Agentur für Forschung GmbH <info@teamq.de>"]
+readme = "README.md"
+homepage = "https://github.com/qagentur/texttunnel"
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = ">=3.9"
+aiohttp = "^3.8.5"
+jsonlines = "^3.1.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+pytest = "^7.4.0"
