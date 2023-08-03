@@ -1,4 +1,8 @@
-from typing import List
+from typing import Dict, List
+from dataclasses import dataclass
+
+
+FunctionDef = Dict[str, str]
 
 
 class ChatMessage:
@@ -31,3 +35,46 @@ class Chat:
 
     def to_list(self):
         return [message.to_dict() for message in self.messages]
+
+
+@dataclass
+class Model:
+    model: str
+    context_size: int
+    input_token_price_per_1k: float
+    output_token_price_per_1k: float
+    tokens_per_minute: int
+    requests_per_minute: int
+
+
+class ChatCompletionRequest:
+    """
+    Defines a request for a chat completion.
+
+    chat: The chat to which the assistant should respond with a function call.
+    model: The name of the OpenAI ChatCompletion model to use for completion.
+    function: The function definition to use for the assistant's response.
+    """
+
+    def __init__(
+        self,
+        chat: Chat,
+        model: Model,
+        function: FunctionDef,
+    ):
+        self.chat = chat
+        self.model = model
+
+        self.function = function
+
+        # Force the model to use a function call
+        self.functions = [function]
+        self.function_call = {"name": function["name"]}
+
+    def to_dict(self):
+        return {
+            "model": self.model,
+            "messages": self.chat.to_list(),
+            "functions": self.functions,
+            "function_call": self.function_call,
+        }
