@@ -32,7 +32,7 @@ def function_fixture():
 @pytest.fixture
 def model_fixture():
     return Model(
-        model="gpt-3.5-turbo",
+        name="gpt-3.5-turbo",
         context_size=4000,
         input_token_price_per_1k=0.002,
         output_token_price_per_1k=0.004,
@@ -55,3 +55,4 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     )
 
     assert request.function_call == {"name": "function_name"}
+    assert request.count_tokens() > 0
