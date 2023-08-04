@@ -95,13 +95,15 @@ The script is structured as follows:
 # imports
 import aiohttp  # for making API calls concurrently
 import asyncio  # for running API calls concurrently
+from hashlib import sha256  # for hashing API inputs
 import json  # for saving results to a jsonl file
 import logging  # for logging rate limit warnings and other messages
 import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
 import re  # for matching endpoint from request URL
 import tiktoken  # for counting tokens
-from typing import List, Optional  # for type hints
+from typing import Any, Dict, List, Optional, Union  # for type hints
+from pathlib import Path  # for saving results to a file
 import time  # for sleeping after rate limit is hit
 from dataclasses import (
     dataclass,
@@ -111,25 +113,44 @@ from dataclasses import (
 from texttunnel.chat import ChatCompletionRequest
 
 
+def hash_dict(d: dict) -> str:
+    """
+    Hashes a dictionary using sha256.
+    """
+    return sha256(json.dumps(d).encode("utf-8")).hexdigest()
+
+
 def process_api_requests(
     requests: List[ChatCompletionRequest],
-    save_filepath: str,
+    save_filepath: Union[str, Path],
+    keep_file: bool = True,
     logging_level: int = 20,
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     token_encoding_name: str = "cl100k_base",
     request_url: str = "https://api.openai.com/v1/chat/completions",
     api_key: Optional[str] = None,
-):
+) -> List[Dict[str, Any]]:
     """
     Processes API requests in parallel, throttling to stay under rate limits.
     This function is a wrapper for aprocess_api_requests() that runs it in an asyncio event loop.
+    Also sorts the output by request ID, so that the results are in the same order as the requests.
     """
     # Handle Notebook environment
     if "ipykernel" in sys.modules:
         import nest_asyncio
 
         nest_asyncio.apply()
+
+    if not isinstance(save_filepath, Path):
+        save_filepath = Path(save_filepath)
+
+    if save_filepath.exists():
+        raise ValueError(f"File already exists: {save_filepath}")
+
+    request_order = {
+        hash_dict(request.to_dict()): i for i, request in enumerate(requests)
+    }
 
     asyncio.run(
         aprocess_api_requests(
@@ -144,10 +165,32 @@ def process_api_requests(
         )
     )
 
+    # Read results from file
+    with open(save_filepath, "r") as f:
+        responses = [json.loads(line) for line in f]
+
+    # Sort results in order of input requests
+    # Results is a list of lists, where each sublist is [request, response]
+    responses = sorted(
+        responses,
+        key=lambda x: request_order[hash_dict(x[0])],
+    )
+
+    # Delete file if keep_file is False
+    if not keep_file:
+        save_filepath.unlink()
+    else:
+        # Overwrite file with sorted results
+        with open(save_filepath, "w") as f:
+            for response in responses:
+                f.write(json.dumps(response) + "\n")
+
+    return responses
+
 
 async def aprocess_api_requests(
     requests: List[ChatCompletionRequest],
-    save_filepath: str,
+    save_filepath: Path,
     logging_level: int,
     max_attempts: int,
     rate_limit_headroom_factor: float,
@@ -352,7 +395,7 @@ class APIRequest:
         request_url: str,
         request_header: dict,
         retry_queue: asyncio.Queue,
-        save_filepath: str,
+        save_filepath: Path,
         status_tracker: StatusTracker,
     ):
         """Calls the OpenAI API and saves results."""
