@@ -535,3 +535,15 @@ def task_id_generator_function():
     while True:
         yield task_id
         task_id += 1
+
+
+def parse_response(response: List[Dict]) -> Dict[str, Any]:
+    """Extract the function call arguments from a response."""
+    return json.loads(
+        response[1]["choices"][0]["message"]["function_call"]["arguments"]
+    )
+
+
+def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
+    """Extract the function call arguments from a list of responses."""
+    return [parse_response(r) for r in responses]
