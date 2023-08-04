@@ -55,7 +55,7 @@ responses = texttunnel.processor.process_api_requests(
     requests=requests,
     save_filepath="output.jsonl",
     keep_file=False,
-    logging_level=50 # only log errors
+    logging_level=50,  # only log errors
 )
 
 # %%
