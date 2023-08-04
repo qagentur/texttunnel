@@ -8,3 +8,12 @@ GPT_3_5_TURBO = chat.Model(
     tokens_per_minute=90000,
     requests_per_minute=3500,
 )
+
+GPT_4 = chat.Model(
+    name="gpt-4",
+    context_size=8000,
+    input_token_price_per_1k=0.03,
+    output_token_price_per_1k=0.06,
+    tokens_per_minute=40000,
+    requests_per_minute=200,
+)
