@@ -108,6 +108,8 @@ class ChatCompletionRequest:
         chat: The chat to which the assistant should respond with a function call.
         model: The name of the OpenAI ChatCompletion model to use for completion.
         function: The function definition to use for the assistant's response.
+            Must be a dictionary that describes a valid JSON schema.
+            See https://platform.openai.com/docs/guides/gpt/function-calling
     """
 
     def __init__(

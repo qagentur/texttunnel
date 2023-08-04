@@ -9,9 +9,10 @@ input_texts = [
     "I don't like rain",
 ]
 
-# Sentiment analysis function
+# Describe the output format that we'd like to receive,
+# using JSON Schema
 function = {
-    "name": "function_name",
+    "name": "sentiment_analysis",
     "parameters": {
         "type": "object",
         "properties": {
