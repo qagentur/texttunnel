@@ -16,34 +16,30 @@ function = {
     "parameters": {
         "type": "object",
         "properties": {
-            "sentiment": {"type": "string", "enum": ["positive", "negative"]}
+            "answers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "sentiment": {"type": "string"},
+                    },
+                    "required": ["id", "sentiment"],
+                },
+            },
         },
+        "required": ["answers"],
     },
 }
 
-requests = []
+system_message = "You are a sentiment analysis expert. Analyze the following statements as positive or negative."
 
-for text in input_texts:
-    messages = texttunnel.chat.Chat(
-        [
-            texttunnel.chat.ChatMessage(
-                role="system",
-                content="You are a sentiment analysis expert.",
-            ),
-            texttunnel.chat.ChatMessage(
-                role="user",
-                content=f"Classify the following statement as positive or negative: {text}",
-            ),
-        ]
-    )
-
-    request = texttunnel.chat.ChatCompletionRequest(
-        model=texttunnel.models.GPT_3_5_TURBO,
-        chat=messages,
-        function=function,
-    )
-
-    requests.append(request)
+requests = texttunnel.chat.build_binpacked_requests(
+    texts=input_texts,
+    function=function,
+    model=texttunnel.models.GPT_3_5_TURBO,
+    system_message=system_message,
+)
 
 # %%
 # Estimate the cost of the requests
@@ -62,7 +58,7 @@ responses = texttunnel.processor.process_api_requests(
 # %%
 results = texttunnel.processor.parse_responses(responses=responses)
 
-for text, sentiment in zip(input_texts, results):
-    print(f"{text}: {sentiment}")
+for text, answer in zip(input_texts, results[0]["answers"]):
+    print(f"{text}: {answer['sentiment']}")
 
 # %%
