@@ -33,7 +33,7 @@ def function_fixture():
 def model_fixture():
     return chat.Model(
         name="gpt-3.5-turbo",
-        context_size=4000,
+        context_size=4096,
         input_token_price_per_1k=0.002,
         output_token_price_per_1k=0.004,
         tokens_per_minute=90000,
@@ -65,3 +65,21 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
 
     assert request.function_call == {"name": "function_name"}
     assert request.count_tokens() > 0
+
+
+def test_chat_completion_request_context_size_check(chat_fixture, function_fixture):
+    tiny_model = chat.Model(
+        name="tiny-model",
+        context_size=1,
+        input_token_price_per_1k=0.002,
+        output_token_price_per_1k=0.004,
+        tokens_per_minute=90000,
+        requests_per_minute=3500,
+    )
+
+    with pytest.raises(ValueError):
+        chat.ChatCompletionRequest(
+            model=tiny_model,
+            chat=chat_fixture,
+            function=function_fixture,
+        )

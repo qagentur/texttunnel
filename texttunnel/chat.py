@@ -157,6 +157,13 @@ class ChatCompletionRequest:
         self.functions = [function]
         self.function_call = {"name": function["name"]}
 
+        # Check that the inputs fit into the context size
+        num_input_tokens = self.count_tokens()
+        if num_input_tokens > self.model.context_size:
+            raise ValueError(
+                f"Input tokens ({num_input_tokens}) exceed the context size ({self.model.context_size})."
+            )
+
     def to_dict(self) -> Dict[str, object]:
         return {
             "model": self.model.name,
