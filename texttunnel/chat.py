@@ -45,6 +45,29 @@ def get_formatter_overhead(
     return overhead_tokens
 
 
+def truncate_text_by_tokens(
+    text: str,
+    max_tokens: int,
+    encoding: tiktoken.core.Encoding,
+) -> str:
+    """
+    Truncates a text to a maximum number of tokens.
+
+    Args:
+        text: The text to truncate.
+        max_tokens: The maximum number of tokens to truncate the text to.
+        encoding: The encoding to use.
+
+    Returns:
+        The truncated text.
+    """
+    tokens = encoding.encode(text)
+    truncated_tokens = tokens[:max_tokens]
+    truncated_text = encoding.decode(truncated_tokens)
+
+    return truncated_text
+
+
 def binpack_texts_in_order(
     texts: List[str],
     max_tokens: int,
@@ -117,9 +140,10 @@ def binpack_texts_in_order(
                 )
 
             elif long_text_handling == "truncate":
-                # Truncate the text
-                text = encoding.decode(
-                    encoding.encode(text)[: (max_tokens - overhead_tokens)]
+                text = truncate_text_by_tokens(
+                    text=text,
+                    max_tokens=max_tokens - overhead_tokens,
+                    encoding=encoding,
                 )
                 current_bin_tokens = len(encoding.encode(text))
 

@@ -109,3 +109,11 @@ def test_get_formatter_overhead():
         encoding=tiktoken.get_encoding("cl100k_base"),
     )
     assert overhead > 0
+
+
+def truncate_text_by_tokens():
+    text = "Hello, world!"
+    truncated_text = chat.truncate_text_by_tokens(
+        text, max_tokens=2, encoding=tiktoken.get_encoding("cl100k_base")
+    )
+    assert truncated_text == "Hello,"
