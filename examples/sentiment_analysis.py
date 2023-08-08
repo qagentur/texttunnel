@@ -39,6 +39,9 @@ requests = texttunnel.chat.build_binpacked_requests(
     function=function,
     model=texttunnel.models.GPT_3_5_TURBO,
     system_message=system_message,
+    kwargs={
+        "temperature": 0.0,
+    },  # no randomness in the model's output
 )
 
 # %%
