@@ -4,6 +4,7 @@ from texttunnel.chat import (
     ChatCompletionRequest,
     Model,
     num_tokens_from_string,
+    binpack_texts_in_order,
 )
 import pytest
 
@@ -51,14 +52,22 @@ def model_fixture():
 def input_texts():
     return [
         "The first text.",
-        "The second text has non-ASCII characters: 你好世界",  # hello world in Chinese
-        "The third text has a newline.\n",
+        "",  # empty string
+        "The third text has non-ASCII characters: 你好世界",  # hello world in Chinese
+        "The fourth text has a newline.\n",
     ]
 
 
 def test_num_tokens_from_string(input_texts):
     num_tokens = [num_tokens_from_string(text) for text in input_texts]
-    assert num_tokens == [4, 15, 7]
+    assert num_tokens == [4, 0, 15, 7]
+
+
+def test_binpack_texts_in_order(input_texts):
+    bins = binpack_texts_in_order(input_texts, max_tokens=20)
+
+    assert len(bins) == 2
+    assert len(bins[0]) == 3
 
 
 def test_chat(chat_fixture):

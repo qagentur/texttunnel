@@ -12,7 +12,7 @@ def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> i
     Returns the number of tokens in a string.
     Args:
         text: The text to count tokens in.
-        encoding: The name of the encoding to use. Defaults to "cl100k_base".
+        encoding_name: The name of the token encoding to use. Defaults to "cl100k_base".
 
     Returns:
         The number of tokens in the string.
@@ -20,6 +20,73 @@ def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> i
     encoding = tiktoken.get_encoding(encoding_name)
     num_tokens = len(encoding.encode(string))
     return num_tokens
+
+
+def binpack_texts_in_order(
+    texts: List[str],
+    max_tokens: int,
+    max_texts: Optional[int] = None,
+    encoding_name: str = "cl100k_base",
+) -> List[List[str]]:
+    """
+    Binpacks a list of texts into a list of lists of texts, such that each list of texts
+    has a total number of tokens less than or equal to max_tokens and each list of texts
+    has a number of texts less than or equal to max_texts.
+
+    The binpacking uses a naive greedy algorithm that maintains the order of the texts.
+
+    Args:
+        texts: The texts to binpack. Empty texts are accepted, counted as 0 tokens
+            each and count against max_texts.
+        max_tokens: The maximum number of tokens per list of texts.
+        max_texts: The maximum number of texts per list of texts. Defaults to None, which
+            means that there is no limit on the number of texts per list of texts.
+        encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
+
+    Returns:
+        A list of lists of texts. The order of the texts is preserved.
+    """
+
+    if not max_texts:
+        max_texts = len(texts)
+
+    # Count the number of tokens in each text
+    # Don't use num_tokens_from_string() because we don't want to use get_encoding() for each text
+    encoder = tiktoken.get_encoding(encoding_name)
+    num_tokens_list = [len(encoder.encode(text)) for text in texts]
+
+    # Binpack the texts
+    # Initialize the first bin
+    bins = []
+    current_bin = []
+    current_bin_tokens = 0
+    current_bin_texts = 0
+
+    for i, (text, num_tokens) in enumerate(zip(texts, num_tokens_list)):
+        if num_tokens > max_tokens:
+            raise ValueError(f"Text at index {i} has more than {max_tokens} tokens.")
+
+        # Check if we need to start a new bin
+        if (
+            current_bin_tokens + num_tokens > max_tokens
+            or current_bin_texts == max_texts
+        ):
+            # Start a new bin
+            bins.append(current_bin)
+            current_bin = []
+            current_bin_tokens = 0
+            current_bin_texts = 0
+
+        # Add to the current bin
+        current_bin.append(text)
+        current_bin_tokens += num_tokens
+        current_bin_texts += 1
+
+    # Add the last bin if it's not empty
+    if current_bin:
+        bins.append(current_bin)
+
+    return bins
 
 
 class ChatMessage:
