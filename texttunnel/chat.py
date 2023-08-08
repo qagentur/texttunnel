@@ -23,6 +23,28 @@ def num_tokens_from_text(text: str, encoding_name: str = "cl100k_base") -> int:
     return num_tokens
 
 
+def get_formatter_overhead(
+    formatter_function: Callable[[List[str]], str], encoding: tiktoken.core.Encoding
+) -> int:
+    """
+    Returns the number of tokens added by a formatter function.
+    Note that this is only the overhead for a single empty text and that
+    the overhead for a list of texts is less than the sum of the overheads
+    for each text individually.
+
+    Args:
+        formatter_function: A function that takes a list of texts and returns a single
+            text.
+        encoding: The encoding to use.
+
+    Returns:
+        The number of tokens added by the formatter function.
+    """
+    overhead_tokens = len(encoding.encode(formatter_function([""])))
+
+    return overhead_tokens
+
+
 def binpack_texts_in_order(
     texts: List[str],
     max_tokens: int,
@@ -60,12 +82,12 @@ def binpack_texts_in_order(
     if not max_texts:
         max_texts = len(texts)
 
-    encoder = tiktoken.get_encoding(encoding_name)
+    encoding = tiktoken.get_encoding(encoding_name)
 
     # Formatting has an overhead, determine how much overhead there is
     # for an empty text
     if formatter_function:
-        overhead_tokens = len(encoder.encode(formatter_function([""])))
+        overhead_tokens = get_formatter_overhead(formatter_function, encoding)
     else:
         overhead_tokens = 0
 
@@ -80,10 +102,10 @@ def binpack_texts_in_order(
         # Calculate how many tokens would be in the current bin if we added the text
         if formatter_function:
             current_bin_tokens = len(
-                encoder.encode(formatter_function(current_bin + [text]))
+                encoding.encode(formatter_function(current_bin + [text]))
             )
         else:
-            current_bin_tokens = len(encoder.encode(" ".join(current_bin + [text])))
+            current_bin_tokens = len(encoding.encode(" ".join(current_bin + [text])))
 
         if current_bin_tokens > max_tokens and len(current_bin) == 0:
             if long_text_handling == "error":
@@ -96,10 +118,10 @@ def binpack_texts_in_order(
 
             elif long_text_handling == "truncate":
                 # Truncate the text
-                text = encoder.decode(
-                    encoder.encode(text)[: (max_tokens - overhead_tokens)]
+                text = encoding.decode(
+                    encoding.encode(text)[: (max_tokens - overhead_tokens)]
                 )
-                current_bin_tokens = len(encoder.encode(text))
+                current_bin_tokens = len(encoding.encode(text))
 
             else:
                 raise ValueError(

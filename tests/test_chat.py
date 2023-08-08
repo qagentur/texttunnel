@@ -1,5 +1,6 @@
 from texttunnel import chat
 import pytest
+import tiktoken
 
 
 @pytest.fixture
@@ -100,3 +101,11 @@ def test_build_binpacked_requests(
     )
 
     assert len(requests) == 1
+
+
+def test_get_formatter_overhead():
+    overhead = chat.get_formatter_overhead(
+        formatter_function=chat.format_texts_as_json,
+        encoding=tiktoken.get_encoding("cl100k_base"),
+    )
+    assert overhead > 0
