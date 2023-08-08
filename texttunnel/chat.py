@@ -351,13 +351,22 @@ def build_binpacked_requests(
         formatter_function=formatter_function,
     )
 
-    chats = []
+    requests = []
 
     for bin_ in bins:
         # Create a chat from the bin (called bin_ to avoid shadowing the builtin)
         messages = [ChatMessage("system", system_message)]
         messages.append(ChatMessage("user", formatter_function(bin_)))
 
-        chats.append(Chat(messages))
+        chat = Chat(messages)
 
-    return chats
+        request = ChatCompletionRequest(
+            chat=chat,
+            model=model,
+            function=function,
+            kwargs=kwargs,
+        )
+
+        requests.append(request)
+
+    return requests
