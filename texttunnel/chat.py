@@ -1,10 +1,34 @@
 from typing import Dict, List
 from dataclasses import dataclass
+from jsonschema import Draft7Validator, exceptions
 import tiktoken
 import json
 
-
 FunctionDef = Dict[str, str]
+
+
+def is_valid_function_def(function: FunctionDef) -> bool:
+    """
+    Checks if a function definition is valid for use in a ChatCompletionRequest.
+    Note that the parameter properties are not validated to allow for custom properties.
+    """
+    base_schema = {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "parameters": {
+            "type": "object",
+            "properties": {"type": "object"},
+        },
+        "required": ["name", "parameters"],
+    }
+
+    try:
+        Draft7Validator(base_schema).validate(function)
+    except exceptions.ValidationError:
+        print(f"Validation error: {exceptions.ValidationError}")
+        return False
+
+    return True
 
 
 def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
@@ -120,6 +144,9 @@ class ChatCompletionRequest:
     ):
         self.chat = chat
         self.model = model
+
+        if not is_valid_function_def(function):
+            raise ValueError("Invalid function definition.")
 
         self.function = function
 

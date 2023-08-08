@@ -1,16 +1,16 @@
-from texttunnel.chat import ChatMessage, Chat, ChatCompletionRequest, Model
+from texttunnel import chat
 import pytest
 
 
 @pytest.fixture
 def chat_fixture():
-    return Chat(
+    return chat.Chat(
         messages=[
-            ChatMessage(
+            chat.ChatMessage(
                 role="system",
                 content="You are a helpful assistant.",
             ),
-            ChatMessage(
+            chat.ChatMessage(
                 role="user",
                 content="Hello, world!",
             ),
@@ -31,7 +31,7 @@ def function_fixture():
 
 @pytest.fixture
 def model_fixture():
-    return Model(
+    return chat.Model(
         name="gpt-3.5-turbo",
         context_size=4000,
         input_token_price_per_1k=0.002,
@@ -41,6 +41,15 @@ def model_fixture():
     )
 
 
+def test_is_valid_function_def(function_fixture):
+    assert chat.is_valid_function_def(function_fixture)
+
+    bad_function = function_fixture.copy()
+    del bad_function["name"]
+
+    assert not chat.is_valid_function_def(bad_function)
+
+
 def test_chat(chat_fixture):
     chat = chat_fixture
 
@@ -48,7 +57,7 @@ def test_chat(chat_fixture):
 
 
 def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
-    request = ChatCompletionRequest(
+    request = chat.ChatCompletionRequest(
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
