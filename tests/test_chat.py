@@ -75,10 +75,14 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
+        model_params={"temperature": 0.5},
     )
 
     assert request.function_call == {"name": "function_name"}
     assert request.count_tokens() > 0
+    assert request.estimate_input_cost_usd() > 0
+    assert isinstance(request.to_dict(), dict)
+    assert request.to_dict()["temperature"] == 0.5
 
 
 def test_format_texts_as_json(texts_fixture):
