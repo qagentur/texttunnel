@@ -374,7 +374,7 @@ def build_binpacked_requests(
     max_tokens_per_chat = max_tokens_per_request - static_tokens
 
     # Binpack the texts into chats
-    bins = binpacking_function(
+    text_bins = binpacking_function(
         texts=texts,
         max_tokens=max_tokens_per_chat,
         max_texts=max_texts_per_chat,
@@ -385,10 +385,10 @@ def build_binpacked_requests(
 
     requests = []
 
-    for bin_ in bins:
-        # Create a chat from the bin (called bin_ to avoid shadowing the builtin)
+    for text_bin in text_bins:
+        # Create a chat from the bin
         messages = [ChatMessage("system", system_message)]
-        messages.append(ChatMessage("user", formatter_function(bin_)))
+        messages.append(ChatMessage("user", formatter_function(text_bin)))
 
         chat = Chat(messages)
 
