@@ -1,23 +1,16 @@
-from texttunnel.chat import (
-    ChatMessage,
-    Chat,
-    ChatCompletionRequest,
-    Model,
-    num_tokens_from_text,
-    binpack_texts_in_order,
-)
+from texttunnel import chat
 import pytest
 
 
 @pytest.fixture
 def chat_fixture():
-    return Chat(
+    return chat.Chat(
         messages=[
-            ChatMessage(
+            chat.ChatMessage(
                 role="system",
                 content="You are a helpful assistant.",
             ),
-            ChatMessage(
+            chat.ChatMessage(
                 role="user",
                 content="Hello, world!",
             ),
@@ -38,7 +31,7 @@ def function_fixture():
 
 @pytest.fixture
 def model_fixture():
-    return Model(
+    return chat.Model(
         name="gpt-3.5-turbo",
         context_size=4000,
         input_token_price_per_1k=0.002,
@@ -49,7 +42,7 @@ def model_fixture():
 
 
 @pytest.fixture
-def input_texts():
+def texts_fixture():
     return [
         "The first text.",
         "",  # empty string
@@ -58,13 +51,13 @@ def input_texts():
     ]
 
 
-def test_num_tokens_from_text(input_texts):
-    num_tokens = [num_tokens_from_text(text) for text in input_texts]
+def test_num_tokens_from_text(texts_fixture):
+    num_tokens = [chat.num_tokens_from_text(text) for text in texts_fixture]
     assert num_tokens == [4, 0, 15, 7]
 
 
-def test_binpack_texts_in_order(input_texts):
-    bins = binpack_texts_in_order(input_texts, max_tokens=20)
+def test_binpack_texts_in_order(texts_fixture):
+    bins = chat.binpack_texts_in_order(texts_fixture, max_tokens=20)
 
     assert len(bins) == 2
     assert len(bins[0]) == 3
@@ -77,11 +70,33 @@ def test_chat(chat_fixture):
 
 
 def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
-    request = ChatCompletionRequest(
+    request = chat.ChatCompletionRequest(
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
     )
 
     assert request.function_call == {"name": "function_name"}
-    assert request.num_tokens_from_text() > 0
+    assert request.count_tokens() > 0
+
+
+def test_format_texts_as_json(texts_fixture):
+    act = chat.format_texts_as_json(texts_fixture[:2])
+    exp = '[{"id": 0, "text": "The first text."}, {"id": 1, "text": ""}]'
+
+    assert act == exp
+
+
+def test_build_binpacked_requests(
+    model_fixture,
+    function_fixture,
+    texts_fixture,
+):
+    requests = chat.build_binpacked_requests(
+        system_message="You are a helpful assistant.",
+        model=model_fixture,
+        function=function_fixture,
+        texts=texts_fixture,
+    )
+
+    assert len(requests) == 1
