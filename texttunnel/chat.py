@@ -29,6 +29,7 @@ def binpack_texts_in_order(
     max_texts: Optional[int] = None,
     encoding_name: str = "cl100k_base",
     formatter_function: Optional[Callable[[List[str]], str]] = None,
+    long_text_handling: str = "error",
 ) -> List[List[str]]:
     """
     Binpacks a list of texts into a list of lists of texts, such that each list of texts
@@ -48,6 +49,9 @@ def binpack_texts_in_order(
         encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
         formatter_function: A function that takes a list of texts and returns a single
             text. Defaults to None, which means that the texts are not formatted.
+        long_text_handling: How to handle texts that are longer than max_tokens. Defaults
+            to "error", which means that an error is raised. Can also be set to
+            "truncate", which means that the text is truncated to max_tokens.
 
     Returns:
         A list of lists of texts. The order of the texts is preserved.
@@ -57,6 +61,13 @@ def binpack_texts_in_order(
         max_texts = len(texts)
 
     encoder = tiktoken.get_encoding(encoding_name)
+
+    # Formatting has an overhead, determine how much overhead there is
+    # for an empty text
+    if formatter_function:
+        overhead_tokens = len(encoder.encode(formatter_function([""])))
+    else:
+        overhead_tokens = 0
 
     # Binpack the texts
     # Initialize the first bin
@@ -75,12 +86,28 @@ def binpack_texts_in_order(
             current_bin_tokens = len(encoder.encode(" ".join(current_bin + [text])))
 
         if current_bin_tokens > max_tokens and len(current_bin) == 0:
-            raise ValueError(
-                f"""
-                The text at index {i} has {current_bin_tokens} tokens, which
-                is greater than the maximum number of tokens ({max_tokens}).
-                """
-            )
+            if long_text_handling == "error":
+                raise ValueError(
+                    f"""
+                    The text at index {i} has {current_bin_tokens} tokens, which
+                    is greater than the maximum number of tokens ({max_tokens}).
+                    """
+                )
+
+            elif long_text_handling == "truncate":
+                # Truncate the text
+                text = encoder.decode(
+                    encoder.encode(text)[: (max_tokens - overhead_tokens)]
+                )
+                current_bin_tokens = len(encoder.encode(text))
+
+            else:
+                raise ValueError(
+                    f"""
+                    Invalid value for long_text_handling: {long_text_handling}.
+                    Must be one of "error" or "truncate".
+                    """
+                )
 
         if current_bin_tokens > max_tokens or current_bin_texts == max_texts:
             # Start a new bin
@@ -207,7 +234,7 @@ class ChatCompletionRequest:
         function: The function definition to use for the assistant's response.
             Must be a dictionary that describes a valid JSON schema.
             See https://platform.openai.com/docs/guides/gpt/function-calling
-        kwargs: Additional keyword arguments to pass to the OpenAI API. See
+        model_params: Additional keyword arguments to pass to the OpenAI API. See
             https://platform.openai.com/docs/api-reference/completions/create
     """
 
@@ -216,7 +243,7 @@ class ChatCompletionRequest:
         chat: Chat,
         model: Model,
         function: FunctionDef,
-        kwargs: Optional[Dict[str, Any]] = None,
+        model_params: Optional[Dict[str, Any]] = None,
     ):
         self.chat = chat
         self.model = model
@@ -227,7 +254,7 @@ class ChatCompletionRequest:
         self.functions = [function]
         self.function_call = {"name": function["name"]}
 
-        self.kwargs = kwargs or {}
+        self.model_params = model_params or {}
 
     def to_dict(self) -> Dict[str, object]:
         """
@@ -239,7 +266,7 @@ class ChatCompletionRequest:
             "messages": self.chat.to_list(),
             "functions": self.functions,
             "function_call": self.function_call,
-            **self.kwargs,
+            **self.model_params,
         }
 
     def count_tokens(self) -> int:
@@ -302,7 +329,8 @@ def build_binpacked_requests(
     binpacking_function: Callable = binpack_texts_in_order,
     formatter_function: Callable = format_texts_as_json,
     encoding_name: str = "cl100k_base",
-    kwargs: Optional[Dict[str, Any]] = None,
+    long_text_handling: str = "error",
+    model_params: Optional[Dict[str, Any]] = None,
 ) -> List[ChatCompletionRequest]:
     """
     Builds a list of ChatCompletionRequests from a list of texts.
@@ -326,7 +354,10 @@ def build_binpacked_requests(
             Defaults to format_texts_as_json().
         encoding_name: The name of the encoding to use for tokenization.
             Defaults to "cl100k_base".
-        kwargs: Additional keyword arguments to pass to the OpenAI API. See
+        long_text_handling: Passed to the binpacking function. Defaults to
+            "error", which means that an error will be raised if a text is too
+            long to fit in a single chat.
+        model_params: Additional keyword arguments to pass to the OpenAI API. See
             https://platform.openai.com/docs/api-reference/completions/create
 
     Returns:
@@ -349,6 +380,7 @@ def build_binpacked_requests(
         max_texts=max_texts_per_chat,
         encoding_name=encoding_name,
         formatter_function=formatter_function,
+        long_text_handling=long_text_handling,
     )
 
     requests = []
@@ -364,7 +396,7 @@ def build_binpacked_requests(
             chat=chat,
             model=model,
             function=function,
-            kwargs=kwargs,
+            model_params=model_params,
         )
 
         requests.append(request)
