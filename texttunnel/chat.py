@@ -11,6 +11,9 @@ def is_valid_function_def(function: FunctionDef) -> bool:
     """
     Checks if a function definition is valid for use in a ChatCompletionRequest.
     Note that the parameter properties are not validated to allow for custom properties.
+
+    Args:
+        - function: The function definition to validate.
     """
     base_schema = {
         "name": {"type": "string"},
