@@ -13,7 +13,7 @@ def is_valid_function_def(function: FunctionDef) -> bool:
     Note that the parameter properties are not validated to allow for custom properties.
 
     Args:
-        - function: The function definition to validate.
+        function: The function definition to validate.
     """
     base_schema = {
         "name": {"type": "string"},
@@ -95,9 +95,18 @@ class Chat:
         self.messages = messages
 
     def to_list(self) -> List[Dict[str, str]]:
+        """
+        Returns:
+            A list of dictionaries representing the chat messages.
+        """
+
         return [message.to_dict() for message in self.messages]
 
     def count_tokens(self) -> int:
+        """
+        Returns:
+            The number of tokens in the chat.
+        """
         return sum(message.count_tokens() for message in self.messages)
 
 
@@ -111,12 +120,12 @@ class Model:
     Check them here: https://platform.openai.com/account/rate-limits
 
     Args:
-        - name: The name of the model, e.g. "gpt-3.5-turbo".
-        - context_size: The maximum number of tokens that can be passed to the model.
-        - input_token_price_per_1k: The price in USD per 1000 tokens for input.
-        - output_token_price_per_1k: The price in USD per 1000 tokens for output.
-        - tokens_per_minute: The maximum number of tokens that can be processed per minute.
-        - requests_per_minute: The maximum number of requests that can be made per minute.
+        name: The name of the model, e.g. "gpt-3.5-turbo".
+        context_size: The maximum number of tokens that can be passed to the model.
+        input_token_price_per_1k: The price in USD per 1000 tokens for input.
+        output_token_price_per_1k: The price in USD per 1000 tokens for output.
+        tokens_per_minute: The maximum number of tokens that can be processed per minute.
+        requests_per_minute: The maximum number of requests that can be made per minute.
     """
 
     name: str
