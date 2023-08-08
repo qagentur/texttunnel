@@ -305,7 +305,8 @@ class ChatCompletionRequest:
     def to_dict(self) -> Dict[str, object]:
         """
         Returns a dictionary representation of the request. Only includes
-        the elements that are required by the OpenAI API.
+        the elements that are required by the OpenAI API. Model parameters
+        are flattened into the top-level dictionary.
         """
         return {
             "model": self.model.name,
@@ -381,6 +382,8 @@ def build_binpacked_requests(
     """
     Builds a list of ChatCompletionRequests from a list of texts.
 
+    The list can then be passed to processor.process_api_requests().
+
     Args:
         model: The model to use for completion.
         function: The function definition to use for the assistant's response.
@@ -407,7 +410,7 @@ def build_binpacked_requests(
             https://platform.openai.com/docs/api-reference/completions/create
 
     Returns:
-        A list of chats.
+        A list of ChatCompletionRequests.
     """
     if max_tokens_per_request is None:
         max_tokens_per_request = int(model.context_size * 0.9)
