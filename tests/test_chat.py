@@ -3,7 +3,7 @@ from texttunnel.chat import (
     Chat,
     ChatCompletionRequest,
     Model,
-    num_tokens_from_string,
+    num_tokens_from_text,
     binpack_texts_in_order,
 )
 import pytest
@@ -58,8 +58,8 @@ def input_texts():
     ]
 
 
-def test_num_tokens_from_string(input_texts):
-    num_tokens = [num_tokens_from_string(text) for text in input_texts]
+def test_num_tokens_from_text(input_texts):
+    num_tokens = [num_tokens_from_text(text) for text in input_texts]
     assert num_tokens == [4, 0, 15, 7]
 
 
@@ -84,4 +84,4 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     )
 
     assert request.function_call == {"name": "function_name"}
-    assert request.num_tokens_from_string() > 0
+    assert request.num_tokens_from_text() > 0
