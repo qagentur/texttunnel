@@ -30,6 +30,7 @@ def function_fixture():
     }
 
 
+@pytest.fixture
 def model_fixture():
     return chat.Model(
         name="gpt-3.5-turbo",
@@ -94,6 +95,16 @@ def test_format_texts_as_json(texts_fixture):
     exp = '[{"id": 0, "text": "The first text."}, {"id": 1, "text": ""}]'
 
     assert act == exp
+
+
+def test_format_texts_as_single_string(texts_fixture):
+    act = chat.format_texts_as_single_string(texts_fixture[:1])
+    exp = "The first text."
+
+    assert act == exp
+
+    with pytest.raises(ValueError):
+        chat.format_texts_as_single_string(texts_fixture)
 
 
 def test_build_binpacked_requests(

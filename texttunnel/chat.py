@@ -366,6 +366,21 @@ def format_texts_as_json(texts: List[str]) -> str:
     return json.dumps(text_dicts)
 
 
+def format_texts_as_single_string(texts: List[str]) -> str:
+    """
+    Use this formatter function if you only want to send a single string to the
+    model. Set max_texts_per_chat=1 argument of build_binpacked_requests to 
+    ensure that only one text is sent to the model at a time.
+    """
+    if len(texts) > 1:
+        raise ValueError(
+            "This formatter function only supports a single text. "
+            "Use format_texts_as_json() to send multiple texts."
+        )
+
+    return texts[0]
+
+
 def build_binpacked_requests(
     model: Model,
     function: FunctionDef,
