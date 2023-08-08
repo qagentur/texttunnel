@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from dataclasses import dataclass
 import tiktoken
 import json
@@ -7,17 +7,18 @@ import json
 FunctionDef = Dict[str, str]
 
 
-def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+def num_tokens_from_string(string: str, encoding_name: str = "cl100k_base") -> int:
     """
     Returns the number of tokens in a string.
-
     Args:
         text: The text to count tokens in.
         encoding: The name of the encoding to use. Defaults to "cl100k_base".
-    """
 
-    encoder = tiktoken.get_encoding(encoding)
-    num_tokens = len(encoder.encode(text))
+    Returns:
+        The number of tokens in the string.
+    """
+    encoding = tiktoken.get_encoding(encoding_name)
+    num_tokens = len(encoding.encode(string))
     return num_tokens
 
 
@@ -42,8 +43,8 @@ class ChatMessage:
     def to_dict(self) -> Dict[str, str]:
         return {"role": self.role, "content": self.content}
 
-    def count_tokens(self) -> int:
-        return count_tokens(self.content)
+    def num_tokens_from_string(self) -> int:
+        return num_tokens_from_string(self.content)
 
 
 class Chat:
@@ -70,8 +71,8 @@ class Chat:
     def to_list(self) -> List[Dict[str, str]]:
         return [message.to_dict() for message in self.messages]
 
-    def count_tokens(self) -> int:
-        return sum(message.count_tokens() for message in self.messages)
+    def num_tokens_from_string(self) -> int:
+        return sum(message.num_tokens_from_string() for message in self.messages)
 
 
 @dataclass
@@ -135,9 +136,9 @@ class ChatCompletionRequest:
             "function_call": self.function_call,
         }
 
-    def count_tokens(self) -> int:
-        chat_tokens = self.chat.count_tokens()
-        function_tokens = count_tokens(json.dumps(self.function_call))
+    def num_tokens_from_string(self) -> int:
+        chat_tokens = self.chat.num_tokens_from_string()
+        function_tokens = num_tokens_from_string(json.dumps(self.function_call))
 
         return chat_tokens + function_tokens
 
@@ -145,7 +146,7 @@ class ChatCompletionRequest:
         """
         Estimates the cost of the request in USD.
         """
-        num_input_tokens = self.count_tokens()
+        num_input_tokens = self.num_tokens_from_string()
 
         input_cost_usd = num_input_tokens * self.model.input_token_price_per_1k / 1000
 

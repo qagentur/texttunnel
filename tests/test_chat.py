@@ -1,4 +1,10 @@
-from texttunnel.chat import ChatMessage, Chat, ChatCompletionRequest, Model
+from texttunnel.chat import (
+    ChatMessage,
+    Chat,
+    ChatCompletionRequest,
+    Model,
+    num_tokens_from_string,
+)
 import pytest
 
 
@@ -41,6 +47,20 @@ def model_fixture():
     )
 
 
+@pytest.fixture
+def input_texts():
+    return [
+        "The first text.",
+        "The second text has non-ASCII characters: 你好世界",  # hello world in Chinese
+        "The third text has a newline.\n",
+    ]
+
+
+def test_num_tokens_from_string(input_texts):
+    num_tokens = [num_tokens_from_string(text) for text in input_texts]
+    assert num_tokens == [4, 15, 7]
+
+
 def test_chat(chat_fixture):
     chat = chat_fixture
 
@@ -55,4 +75,4 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     )
 
     assert request.function_call == {"name": "function_name"}
-    assert request.count_tokens() > 0
+    assert request.num_tokens_from_string() > 0
