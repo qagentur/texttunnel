@@ -62,11 +62,33 @@ def test_num_tokens_from_text(texts_fixture):
     assert num_tokens == [4, 0, 15, 7]
 
 
-def test_binpack_texts_in_order(texts_fixture):
-    bins = chat.binpack_texts_in_order(texts_fixture, max_tokens=20)
+def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
+    max_tokens = 20
+    text_bins = chat.binpack_texts_in_order(texts_fixture, max_tokens=max_tokens)
 
-    assert len(bins) == 2
-    assert len(bins[0]) == 3
+    tokens_in_bins = [
+        len(encoding_fixture.encode(chat.format_texts_as_json(text_bin)))
+        for text_bin in text_bins
+    ]
+    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
+
+
+def test_binpack_texts_in_order_long_text_error(texts_fixture):
+    with pytest.raises(ValueError):
+        chat.binpack_texts_in_order(texts_fixture, max_tokens=5)
+
+
+def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
+    max_tokens = 5
+    text_bins = chat.binpack_texts_in_order(
+        texts_fixture, max_tokens=max_tokens, long_text_handling="truncate"
+    )
+
+    tokens_in_bins = [
+        len(encoding_fixture.encode(chat.format_texts_as_json(text_bin)))
+        for text_bin in text_bins
+    ]
+    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
 
 
 def test_chat(chat_fixture):
@@ -117,9 +139,10 @@ def test_build_binpacked_requests(
         model=model_fixture,
         function=function_fixture,
         texts=texts_fixture,
+        max_texts_per_chat=2,
     )
 
-    assert len(requests) == 1
+    assert len(requests) == 2
 
 
 def test_get_formatter_overhead(encoding_fixture):
