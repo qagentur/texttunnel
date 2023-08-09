@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, List, Optional
 from dataclasses import dataclass
 import tiktoken
 import json
+import math
 
 
 FunctionDef = Dict[str, str]
@@ -28,9 +29,9 @@ def get_formatter_overhead(
 ) -> int:
     """
     Returns the number of tokens added by a formatter function.
-    Note that this is only the overhead for a single empty text and that
-    the overhead for a list of texts is less than the sum of the overheads
-    for each text individually.
+    The overhead is calculated by passing two empty texts, measuring the
+    number of tokens in the output, dividing by two and rounding up.
+    This may not be accurate for all formatter functions.
 
     Args:
         formatter_function: A function that takes a list of texts and returns a single
@@ -40,9 +41,9 @@ def get_formatter_overhead(
     Returns:
         The number of tokens added by the formatter function.
     """
-    overhead_tokens = len(encoding.encode(formatter_function([""])))
+    overhead_tokens = len(encoding.encode(formatter_function(["", ""])))
 
-    return overhead_tokens
+    return math.ceil(overhead_tokens / 2)
 
 
 def truncate_text_by_tokens(
@@ -68,12 +69,49 @@ def truncate_text_by_tokens(
     return truncated_text
 
 
+def format_texts_as_json(texts: List[str]) -> str:
+    """
+    Formats a list of texts into a single string to be used as a user message.
+    Each text is assigned an ID, starting from 0. The returned JSON format
+    helps the model distinguish between different texts, at the cost of
+    increasing the number of tokens used.
+
+    The format is a JSON list of dictionaries, where each dictionary has an
+    "id" key and a "text" key. The "id" key is an integer, and the "text" key
+    is a string. This array of maps structure is easiest to parse by GPT models
+    and handles edge cases like newlines in the text.
+
+    Args:
+        texts: A list of texts to format.
+
+    Returns:
+        A formatted string that can be used as a user message.
+    """
+
+    text_dicts = [
+        {
+            "id": i,
+            "text": text,
+        }
+        for i, text in enumerate(texts)
+    ]
+
+    return json.dumps(text_dicts)
+
+
+def format_texts_with_spaces(texts: List[str]) -> str:
+    """
+    Simple formatter that joins texts with spaces.
+    """
+    return " ".join(texts)
+
+
 def binpack_texts_in_order(
     texts: List[str],
     max_tokens: int,
     max_texts: Optional[int] = None,
     encoding_name: str = "cl100k_base",
-    formatter_function: Optional[Callable[[List[str]], str]] = None,
+    formatter_function: Callable[[List[str]], str] = format_texts_with_spaces,
     long_text_handling: str = "error",
 ) -> List[List[str]]:
     """
@@ -93,7 +131,7 @@ def binpack_texts_in_order(
             means that there is no limit on the number of texts per list of texts.
         encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
         formatter_function: A function that takes a list of texts and returns a single
-            text. Defaults to None, which means that the texts are not formatted.
+            text. Defaults to None, which means that the texts are joined with spaces.
         long_text_handling: How to handle texts that are longer than max_tokens. Defaults
             to "error", which means that an error is raised. Can also be set to
             "truncate", which means that the text is truncated to max_tokens.
@@ -109,10 +147,14 @@ def binpack_texts_in_order(
 
     # Formatting has an overhead, determine how much overhead there is
     # for an empty text
-    if formatter_function:
-        overhead_tokens = get_formatter_overhead(formatter_function, encoding)
+    if formatter_function is not None:
+        formatter = formatter_function
     else:
-        overhead_tokens = 0
+
+        def formatter(texts):
+            return " ".join(texts)
+
+    overhead_tokens = get_formatter_overhead(formatter, encoding)
 
     # Binpack the texts
     # Initialize the first bin
@@ -123,43 +165,42 @@ def binpack_texts_in_order(
     for i, text in enumerate(texts):
         # Check if we need to start a new bin
         # Calculate how many tokens would be in the current bin if we added the text
-        if formatter_function:
-            current_bin_tokens = len(
-                encoding.encode(formatter_function(current_bin + [text]))
-            )
-        else:
-            current_bin_tokens = len(encoding.encode(" ".join(current_bin + [text])))
+        bin_tokens_with_new_text = len(encoding.encode(formatter(current_bin + [text])))
 
-        if current_bin_tokens > max_tokens and len(current_bin) == 0:
-            if long_text_handling == "error":
-                raise ValueError(
-                    f"""
-                    The text at index {i} has {current_bin_tokens} tokens, which
-                    is greater than the maximum number of tokens ({max_tokens}).
-                    """
-                )
-
-            elif long_text_handling == "truncate":
-                text = truncate_text_by_tokens(
-                    text=text,
-                    max_tokens=max_tokens - overhead_tokens,
-                    encoding=encoding,
-                )
-                current_bin_tokens = len(encoding.encode(text))
-
-            else:
-                raise ValueError(
-                    f"""
-                    Invalid value for long_text_handling: {long_text_handling}.
-                    Must be one of "error" or "truncate".
-                    """
-                )
-
-        if current_bin_tokens > max_tokens or current_bin_texts == max_texts:
+        if bin_tokens_with_new_text > max_tokens or current_bin_texts == max_texts:
             # Start a new bin
             bins.append(current_bin)
             current_bin = []
             current_bin_texts = 0
+
+            # Check if the text is too long to fit in a bin
+            tokens_new_text_only = len(encoding.encode(formatter([text])))
+
+            if tokens_new_text_only > max_tokens:
+                if long_text_handling == "error":
+                    raise ValueError(
+                        f"""
+                        The text at index {i} has {bin_tokens_with_new_text} tokens, which
+                        is greater than the maximum number of tokens ({max_tokens}).
+                        Formatter overhead is {overhead_tokens} tokens.
+                        """
+                    )
+
+                elif long_text_handling == "truncate":
+                    text = truncate_text_by_tokens(
+                        text=text,
+                        max_tokens=max_tokens - overhead_tokens,
+                        encoding=encoding,
+                    )
+                    bin_tokens_with_new_text = len(encoding.encode(text))
+
+                else:
+                    raise ValueError(
+                        f"""
+                        Invalid value for long_text_handling: {long_text_handling}.
+                        Must be one of "error" or "truncate".
+                        """
+                    )
 
         # Add to the current bin
         current_bin.append(text)
@@ -334,51 +375,6 @@ class ChatCompletionRequest:
         input_cost_usd = num_input_tokens * self.model.input_token_price_per_1k / 1000
 
         return input_cost_usd
-
-
-def format_texts_as_json(texts: List[str]) -> str:
-    """
-    Formats a list of texts into a single string to be used as a user message.
-    Each text is assigned an ID, starting from 0. The returned JSON format
-    helps the model distinguish between different texts, at the cost of
-    increasing the number of tokens used.
-
-    The format is a JSON list of dictionaries, where each dictionary has an
-    "id" key and a "text" key. The "id" key is an integer, and the "text" key
-    is a string. This array of maps structure is easiest to parse by GPT models
-    and handles edge cases like newlines in the text.
-
-    Args:
-        texts: A list of texts to format.
-
-    Returns:
-        A formatted string that can be used as a user message.
-    """
-
-    text_dicts = [
-        {
-            "id": i,
-            "text": text,
-        }
-        for i, text in enumerate(texts)
-    ]
-
-    return json.dumps(text_dicts)
-
-
-def format_texts_as_single_string(texts: List[str]) -> str:
-    """
-    Use this formatter function if you only want to send a single string to the
-    model. Set max_texts_per_chat=1 argument of build_binpacked_requests to 
-    ensure that only one text is sent to the model at a time.
-    """
-    if len(texts) > 1:
-        raise ValueError(
-            "This formatter function only supports a single text. "
-            "Use format_texts_as_json() to send multiple texts."
-        )
-
-    return texts[0]
 
 
 def build_binpacked_requests(
