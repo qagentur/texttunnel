@@ -26,6 +26,19 @@ class Model:
     tokens_per_minute: int
     requests_per_minute: int
 
+    def __post_init__(self):
+        # Check that inputs are positive
+
+        for arg in [
+            "context_size",
+            "input_token_price_per_1k",
+            "output_token_price_per_1k",
+            "tokens_per_minute",
+            "requests_per_minute",
+        ]:
+            if getattr(self, arg) < 0:
+                raise ValueError(f"{arg} must be positive")
+
 
 GPT_3_5_TURBO = Model(
     name="gpt-3.5-turbo",
