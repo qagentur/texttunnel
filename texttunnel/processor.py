@@ -31,7 +31,6 @@ import json  # for saving results to a jsonl file
 import logging  # for logging rate limit warnings and other messages
 import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
-import re  # for matching endpoint from request URL
 import tiktoken  # for counting tokens
 from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 from pathlib import Path  # for saving results to a file
@@ -59,7 +58,6 @@ def process_api_requests(
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     token_encoding_name: str = "cl100k_base",
-    request_url: str = "https://api.openai.com/v1/chat/completions",
     api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -108,9 +106,6 @@ def process_api_requests(
         token_encoding_name: str, optional
             name of the token encoding used, as defined in the `tiktoken` package
             if omitted, will default to "cl100k_base" (used by `text-embedding-ada-002`)
-        request_url: str, optional
-            URL of the API endpoint to call
-            if omitted, will default to "https://api.openai.com/v1/chat/completions"
         api_key: str, optional
             API key to use
             if omitted, the function will attempt to read it from an environment variable {os.getenv("OPENAI_API_KEY")}
@@ -154,7 +149,6 @@ def process_api_requests(
             max_attempts,
             rate_limit_headroom_factor,
             token_encoding_name,
-            request_url,
             api_key,
         )
     )
@@ -189,7 +183,6 @@ async def aprocess_api_requests(
     max_attempts: int,
     rate_limit_headroom_factor: float,
     token_encoding_name: str,
-    request_url: str,
     api_key: Optional[str] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
@@ -220,8 +213,9 @@ async def aprocess_api_requests(
     logging.basicConfig(level=logging_level)
     logging.debug(f"Logging initialized at level {logging_level}")
 
-    # infer API endpoint and construct request header
-    api_endpoint = api_endpoint_from_url(request_url)
+    # initialize API constants
+    request_url = "https://api.openai.com/v1/chat/completions"
+    api_endpoint = "chat/completions"
     request_header = {"Authorization": f"Bearer {api_key}"}
 
     # initialize trackers
@@ -447,20 +441,6 @@ class APIRequest:
 
 
 # functions
-def api_endpoint_from_url(request_url: str) -> str:
-    """
-    Extract the API endpoint from the request URL.
-
-    Args:
-        request_url: The URL of the API request.
-
-    Returns:
-        The API endpoint, e.g. "chat/completions".
-    """
-    match = re.search("^https://[^/]+/v\\d+/(.+)$", request_url)
-    return match[1]
-
-
 def append_to_jsonl(data: Any, filename: str) -> None:
     """
     Append a json payload to the end of a jsonl file.
