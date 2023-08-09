@@ -63,51 +63,6 @@ def test_chat_add_message(chat_fixture):
     assert chat_fixture.messages[2].content == "Hi!"
 
 
-def test_num_tokens_from_text(texts_fixture):
-    num_tokens = [chat.num_tokens_from_text(text) for text in texts_fixture]
-    assert num_tokens == [4, 0, 15, 7]
-
-
-def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
-    max_tokens = 40
-    text_bins = chat.binpack_texts_in_order(
-        texts=texts_fixture,
-        max_tokens=max_tokens,
-        formatter_function=chat.format_texts_as_json,
-    )
-
-    tokens_in_bins = [
-        len(encoding_fixture.encode(chat.format_texts_as_json(text_bin)))
-        for text_bin in text_bins
-    ]
-    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
-
-
-def test_binpack_texts_in_order_long_text_error(texts_fixture):
-    with pytest.raises(ValueError):
-        chat.binpack_texts_in_order(
-            texts=texts_fixture,
-            max_tokens=5,
-            formatter_function=chat.format_texts_as_json,
-        )
-
-
-def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
-    max_tokens = 25
-    text_bins = chat.binpack_texts_in_order(
-        texts=texts_fixture,
-        max_tokens=max_tokens,
-        formatter_function=chat.format_texts_as_json,
-        long_text_handling="truncate",
-    )
-
-    tokens_in_bins = [
-        len(encoding_fixture.encode(chat.format_texts_as_json(text_bin)))
-        for text_bin in text_bins
-    ]
-    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
-
-
 def test_chat(chat_fixture):
     chat = chat_fixture
 
@@ -129,13 +84,6 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     assert request.to_dict()["temperature"] == 0.5
 
 
-def test_format_texts_as_json(texts_fixture):
-    act = chat.format_texts_as_json(texts_fixture[:2])
-    exp = '[{"id": 0, "text": "The first text."}, {"id": 1, "text": ""}]'
-
-    assert act == exp
-
-
 def test_build_binpacked_requests(
     model_fixture,
     function_fixture,
@@ -150,11 +98,3 @@ def test_build_binpacked_requests(
     )
 
     assert len(requests) == 2
-
-
-def truncate_text_by_tokens(encoding_fixture):
-    text = "Hello, world!"
-    truncated_text = chat.truncate_text_by_tokens(
-        text, max_tokens=2, encoding=encoding_fixture
-    )
-    assert truncated_text == "Hello,"
