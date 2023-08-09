@@ -1,6 +1,7 @@
-import tiktoken
 import json
 from typing import Callable, List, Optional
+
+import tiktoken
 
 
 def num_tokens_from_text(text: str, encoding_name: str = "cl100k_base") -> int:

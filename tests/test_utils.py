@@ -1,6 +1,7 @@
-from texttunnel import utils
 import pytest
 import tiktoken
+
+from texttunnel import utils
 
 
 @pytest.fixture

@@ -1,9 +1,8 @@
-from typing import Any, Callable, Dict, List, Optional
 import json
+from typing import Any, Callable, Dict, List, Optional
 
-from texttunnel.models import Model
 from texttunnel import utils
-
+from texttunnel.models import Model
 
 FunctionDef = Dict[str, str]
 

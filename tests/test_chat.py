@@ -1,6 +1,7 @@
-from texttunnel import chat, models
 import pytest
 import tiktoken
+
+from texttunnel import chat, models
 
 
 @pytest.fixture
