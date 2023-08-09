@@ -416,7 +416,6 @@ class APIRequest:
                 response = cache[cache_key]
                 cache_hit = True
 
-        
         error = None
 
         if not cache_hit:

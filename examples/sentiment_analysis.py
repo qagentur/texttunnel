@@ -59,7 +59,7 @@ responses = processor.process_api_requests(
     save_filepath="output.jsonl",
     keep_file=False,
     logging_level=20,  # log INFO and above
-    cache=cache, # use diskcache to cache API responses
+    cache=cache,  # use diskcache to cache API responses
 )
 
 # %%
