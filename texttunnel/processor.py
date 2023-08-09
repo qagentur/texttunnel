@@ -23,43 +23,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""
-API REQUEST PARALLEL PROCESSOR
-
-Using the OpenAI API to process lots of text quickly takes some care.
-If you trickle in a million API requests one by one, they'll take days to complete.
-If you flood a million API requests in parallel, they'll exceed the rate limits and fail with errors.
-To maximize throughput, parallel requests need to be throttled to stay under rate limits.
-
-This script parallelizes requests to the OpenAI API while throttling to stay under rate limits.
-
-Features:
-- Streams requests from file, to avoid running out of memory for giant jobs
-- Makes requests concurrently, to maximize throughput
-- Throttles request and token usage, to stay under rate limits
-- Retries failed requests up to {max_attempts} times, to avoid missing data
-- Logs errors, to diagnose problems with requests
-
-The script is structured as follows:
-    - Imports
-    - Define process_api_requests()
-        - Initialize things
-        - In process_api_requests loop:
-            - Get next request if one is not already waiting for capacity
-            - Update available token & request capacity
-            - If enough capacity available, call API
-            - The loop pauses if a rate limit error is hit
-            - The loop breaks when no tasks remain
-    - Define dataclasses
-        - StatusTracker (stores script metadata counters; only one instance is created)
-        - APIRequest (stores API inputs, outputs, metadata; one method to call API)
-    - Define functions
-        - api_endpoint_from_url (extracts API endpoint from request URL)
-        - append_to_jsonl (writes to results file)
-        - num_tokens_consumed_from_request (bigger function to infer token usage from request)
-        - task_id_generator_function (yields 1, 2, 3, ...)
-"""
-
 # imports
 import aiohttp  # for making API calls concurrently
 import asyncio  # for running API calls concurrently
@@ -70,7 +33,7 @@ import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
 import re  # for matching endpoint from request URL
 import tiktoken  # for counting tokens
-from typing import Any, Dict, List, Optional, Union  # for type hints
+from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 from pathlib import Path  # for saving results to a file
 import time  # for sleeping after rate limit is hit
 from dataclasses import (
@@ -100,6 +63,21 @@ def process_api_requests(
     api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
+
+    Using the OpenAI API to process lots of text quickly takes some care.
+    If you trickle in a million API requests one by one, they'll take days to complete.
+    If you flood a million API requests in parallel, they'll exceed the rate limits and fail with errors.
+    To maximize throughput, parallel requests need to be throttled to stay under rate limits.
+
+    The following functions parallelizes requests to the OpenAI API while throttling to stay under rate limits.
+
+    Features:
+    - Streams requests from file, to avoid running out of memory for giant jobs
+    - Makes requests concurrently, to maximize throughput
+    - Throttles request and token usage, to stay under rate limits
+    - Retries failed requests up to {max_attempts} times, to avoid missing data
+    - Logs errors, to diagnose problems with requests
+
     Processes API requests in parallel, throttling to stay under rate limits.
     This function is a wrapper for aprocess_api_requests() that runs it in an asyncio event loop.
     Also sorts the output by request ID, so that the results are in the same order as the requests.
@@ -142,6 +120,16 @@ def process_api_requests(
             - the original request
             - the API response
     """
+
+    # The function is structured as follows:
+    #    - Initialize things
+    #    - In process_api_requests loop:
+    #        - Get next request if one is not already waiting for capacity
+    #        - Update available token & request capacity
+    #        - If enough capacity available, call API
+    #        - The loop pauses if a rate limit error is hit
+    #        - The loop breaks when no tasks remain
+
     # Handle Notebook environment
     if "ipykernel" in sys.modules:
         import nest_asyncio
@@ -369,8 +357,6 @@ async def aprocess_api_requests(
 
 
 # dataclasses
-
-
 @dataclass
 class StatusTracker:
     """Stores metadata about the script's progress. Only one instance is created."""
@@ -461,16 +447,28 @@ class APIRequest:
 
 
 # functions
+def api_endpoint_from_url(request_url: str) -> str:
+    """
+    Extract the API endpoint from the request URL.
 
+    Args:
+        request_url: The URL of the API request.
 
-def api_endpoint_from_url(request_url):
-    """Extract the API endpoint from the request URL."""
+    Returns:
+        The API endpoint, e.g. "chat/completions".
+    """
     match = re.search("^https://[^/]+/v\\d+/(.+)$", request_url)
     return match[1]
 
 
-def append_to_jsonl(data, filename: str) -> None:
-    """Append a json payload to the end of a jsonl file."""
+def append_to_jsonl(data: Any, filename: str) -> None:
+    """
+    Append a json payload to the end of a jsonl file.
+
+    Args:
+        data: The data to append.
+        filename: The file to append to.
+    """
     json_string = json.dumps(data)
     with open(filename, "a") as f:
         f.write(json_string + "\n")
@@ -481,7 +479,14 @@ def num_tokens_consumed_from_request(
     api_endpoint: str,
     token_encoding_name: str,
 ):
-    """Count the number of tokens in the request. Only supports completion and embedding requests."""
+    """
+    Count the number of tokens in the request. Only supports completion and embedding requests.
+
+    Args:
+        request_json: The JSON payload of the request.
+        api_endpoint: The API endpoint of the request.
+        token_encoding_name: The name of the token encoding to use.
+    """
     encoding = tiktoken.get_encoding(token_encoding_name)
     # if completions request, tokens = prompt + n * max_tokens
     if api_endpoint.endswith("completions"):
@@ -535,8 +540,13 @@ def num_tokens_consumed_from_request(
         )
 
 
-def task_id_generator_function():
-    """Generate integers 0, 1, 2, and so on."""
+def task_id_generator_function() -> Generator[int, None, None]:
+    """
+    Generate integers 0, 1, 2, and so on.
+
+    Returns:
+        A generator that yields integers.
+    """
     task_id = 0
     while True:
         yield task_id
@@ -544,12 +554,28 @@ def task_id_generator_function():
 
 
 def parse_response(response: List[Dict]) -> Dict[str, Any]:
-    """Extract the function call arguments from a response."""
+    """
+    Extract the function call arguments from a response.
+
+    Args:
+        response: The response to parse.
+
+    Returns:
+        The function call arguments.
+    """
     return json.loads(
         response[1]["choices"][0]["message"]["function_call"]["arguments"]
     )
 
 
 def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
-    """Extract the function call arguments from a list of responses."""
+    """
+    Extract the function call arguments from a list of responses.
+
+    Args:
+        responses: List of responses to parse.
+
+    Returns:
+        List where each element is the function call arguments for a response.
+    """
     return [parse_response(r) for r in responses]
