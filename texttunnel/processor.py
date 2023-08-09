@@ -399,7 +399,7 @@ class APIRequest:
                 status_tracker.num_api_errors += 1
                 error = response
                 if "Rate limit" in response["error"].get("message", ""):
-                    status_tracker.time_of_last_rate_limit_error = time.time()
+                    status_tracker.time_of_last_rate_limit_error = int(time.time())
                     status_tracker.num_rate_limit_errors += 1
                     status_tracker.num_api_errors -= (
                         1  # rate limit errors are counted separately
@@ -411,6 +411,7 @@ class APIRequest:
             logging.warning(f"Request {self.task_id} failed with Exception {e}")
             status_tracker.num_other_errors += 1
             error = e
+
         if error:
             self.result.append(error)
             if self.attempts_left:
@@ -440,7 +441,7 @@ class APIRequest:
 
 
 # functions
-def append_to_jsonl(data: Any, filename: str) -> None:
+def append_to_jsonl(data: Any, filename: Path) -> None:
     """
     Append a json payload to the end of a jsonl file.
 
