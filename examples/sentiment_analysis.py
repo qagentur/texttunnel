@@ -56,11 +56,12 @@ print(f"Estimated cost of input tokens: ${cost_usd:.4f}")
 # Requires that the OPENAI_API_KEY environment variable is set.
 responses = processor.process_api_requests(
     requests=requests,
-    save_filepath="output.jsonl",
-    keep_file=False,
     logging_level=20,  # log INFO and above
     cache=cache,  # use diskcache to cache API responses
+    api_key="abc",
 )
+
+cache.close()
 
 # %%
 results = processor.parse_responses(responses=responses)
