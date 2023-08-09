@@ -465,7 +465,7 @@ def num_tokens_consumed_from_request(
         token_encoding_name: The name of the token encoding to use.
     """
     encoding = tiktoken.get_encoding(token_encoding_name)
-    
+
     # tokens = prompt + n * max_tokens
     max_tokens = request_json.get("max_tokens", 15)
     n = request_json.get("n", 1)
@@ -473,7 +473,9 @@ def num_tokens_consumed_from_request(
 
     num_tokens = 0
     for message in request_json["messages"]:
-        num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        num_tokens += (
+            4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        )
         for key, value in message.items():
             num_tokens += len(encoding.encode(value))
             if key == "name":  # if there's a name, the role is omitted
