@@ -86,7 +86,7 @@ def process_api_requests(
         save_filepath: str, optional
             path to the file where the results will be saved
             file will be a jsonl file, where each line is an array with the original request plus the API response
-            e.g., [{"model": "text-embedding-ada-002", "input": "embed me"}, {...}]
+            e.g., [{"model": "gpt-4", "messages": "..."}, {...}]
             if omitted, results will be saved to {requests_filename}_results.jsonl
         keep_file: bool, optional
             Whether to keep the results file after the script finishes.
@@ -105,7 +105,7 @@ def process_api_requests(
             if omitted, will default to 0.75 (75% of the rate limit)
         token_encoding_name: str, optional
             name of the token encoding used, as defined in the `tiktoken` package
-            if omitted, will default to "cl100k_base" (used by `text-embedding-ada-002`)
+            if omitted, will default to "cl100k_base" (used by GPT-3.5 and 4)
         api_key: str, optional
             API key to use
             if omitted, the function will attempt to read it from an environment variable {os.getenv("OPENAI_API_KEY")}
