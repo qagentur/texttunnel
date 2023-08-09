@@ -2,6 +2,7 @@ import pytest
 
 from texttunnel import models
 
+
 def test_model_errors_on_negative():
     with pytest.raises(ValueError):
         models.Model(

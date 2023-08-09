@@ -207,9 +207,9 @@ def build_binpacked_requests(
         max_tokens_per_request = int(model.context_size * 0.9)
 
     # The system message counts towards the token limit
-    static_tokens = utils.num_tokens_from_text(system_message) + utils.num_tokens_from_text(
-        json.dumps(function)
-    )
+    static_tokens = utils.num_tokens_from_text(
+        system_message
+    ) + utils.num_tokens_from_text(json.dumps(function))
 
     max_tokens_per_chat = max_tokens_per_request - static_tokens
 
