@@ -63,8 +63,12 @@ def test_num_tokens_from_text(texts_fixture):
 
 
 def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
-    max_tokens = 20
-    text_bins = chat.binpack_texts_in_order(texts_fixture, max_tokens=max_tokens)
+    max_tokens = 10
+    text_bins = chat.binpack_texts_in_order(
+        texts=texts_fixture,
+        max_tokens=max_tokens,
+        formatter_function=chat.format_texts_as_json,
+    )
 
     tokens_in_bins = [
         len(encoding_fixture.encode(chat.format_texts_as_json(text_bin)))
@@ -75,13 +79,20 @@ def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
 
 def test_binpack_texts_in_order_long_text_error(texts_fixture):
     with pytest.raises(ValueError):
-        chat.binpack_texts_in_order(texts_fixture, max_tokens=5)
+        chat.binpack_texts_in_order(
+            texts=texts_fixture,
+            max_tokens=5,
+            formatter_function=chat.format_texts_as_json,
+        )
 
 
 def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
-    max_tokens = 5
+    max_tokens = 20
     text_bins = chat.binpack_texts_in_order(
-        texts_fixture, max_tokens=max_tokens, long_text_handling="truncate"
+        texts=texts_fixture,
+        max_tokens=max_tokens,
+        formatter_function=chat.format_texts_as_json,
+        long_text_handling="truncate",
     )
 
     tokens_in_bins = [
@@ -119,16 +130,6 @@ def test_format_texts_as_json(texts_fixture):
     assert act == exp
 
 
-def test_format_texts_as_single_string(texts_fixture):
-    act = chat.format_texts_as_single_string(texts_fixture[:1])
-    exp = "The first text."
-
-    assert act == exp
-
-    with pytest.raises(ValueError):
-        chat.format_texts_as_single_string(texts_fixture)
-
-
 def test_build_binpacked_requests(
     model_fixture,
     function_fixture,
@@ -145,12 +146,21 @@ def test_build_binpacked_requests(
     assert len(requests) == 2
 
 
-def test_get_formatter_overhead(encoding_fixture):
+def test_get_formatter_overhead_format_texts_as_json(encoding_fixture):
     overhead = chat.get_formatter_overhead(
         formatter_function=chat.format_texts_as_json,
         encoding=encoding_fixture,
     )
     assert overhead > 0
+
+
+def test_get_formatter_overhead_format_texts_with_spaces(encoding_fixture):
+    overhead = chat.get_formatter_overhead(
+        formatter_function=chat.format_texts_with_spaces,
+        encoding=encoding_fixture,
+    )
+
+    assert overhead == 1
 
 
 def truncate_text_by_tokens(encoding_fixture):
