@@ -109,9 +109,9 @@ def format_texts_with_spaces(texts: List[str]) -> str:
 def binpack_texts_in_order(
     texts: List[str],
     max_tokens: int,
+    formatter_function: Callable[[List[str]], str],
     max_texts: Optional[int] = None,
     encoding_name: str = "cl100k_base",
-    formatter_function: Callable[[List[str]], str] = format_texts_with_spaces,
     long_text_handling: str = "error",
 ) -> List[List[str]]:
     """
@@ -124,14 +124,17 @@ def binpack_texts_in_order(
     Args:
         texts: The texts to binpack. Empty texts are accepted, counted as 0 tokens
             each and count against max_texts.
+        formatter_function: A function that takes a list of texts and returns a single
+            text. Defaults to None, which means that the texts are joined with spaces.
+            This function is used to include the overhead of the formatter function in
+            the binpacking. It is not used to format the output. Make sure to use
+            the same formatter function when formatting the output for the model.
         max_tokens: The maximum number of tokens per list of texts. Leave some room for
             relative to the model's context size to account for the tokens in the
             system message, function call, and function return.
         max_texts: The maximum number of texts per list of texts. Defaults to None, which
             means that there is no limit on the number of texts per list of texts.
         encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
-        formatter_function: A function that takes a list of texts and returns a single
-            text. Defaults to None, which means that the texts are joined with spaces.
         long_text_handling: How to handle texts that are longer than max_tokens. Defaults
             to "error", which means that an error is raised. Can also be set to
             "truncate", which means that the text is truncated to max_tokens.
@@ -145,16 +148,7 @@ def binpack_texts_in_order(
 
     encoding = tiktoken.get_encoding(encoding_name)
 
-    # Formatting has an overhead, determine how much overhead there is
-    # for an empty text
-    if formatter_function is not None:
-        formatter = formatter_function
-    else:
-
-        def formatter(texts):
-            return " ".join(texts)
-
-    overhead_tokens = get_formatter_overhead(formatter, encoding)
+    overhead_tokens = get_formatter_overhead(formatter_function, encoding)
 
     # Binpack the texts
     # Initialize the first bin
@@ -165,7 +159,9 @@ def binpack_texts_in_order(
     for i, text in enumerate(texts):
         # Check if we need to start a new bin
         # Calculate how many tokens would be in the current bin if we added the text
-        bin_tokens_with_new_text = len(encoding.encode(formatter(current_bin + [text])))
+        bin_tokens_with_new_text = len(
+            encoding.encode(formatter_function(current_bin + [text]))
+        )
 
         if bin_tokens_with_new_text > max_tokens or current_bin_texts == max_texts:
             # Start a new bin
@@ -174,7 +170,7 @@ def binpack_texts_in_order(
             current_bin_texts = 0
 
             # Check if the text is too long to fit in a bin
-            tokens_new_text_only = len(encoding.encode(formatter([text])))
+            tokens_new_text_only = len(encoding.encode(formatter_function([text])))
 
             if tokens_new_text_only > max_tokens:
                 if long_text_handling == "error":
