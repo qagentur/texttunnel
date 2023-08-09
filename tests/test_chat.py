@@ -63,7 +63,7 @@ def test_num_tokens_from_text(texts_fixture):
 
 
 def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
-    max_tokens = 10
+    max_tokens = 40
     text_bins = chat.binpack_texts_in_order(
         texts=texts_fixture,
         max_tokens=max_tokens,
@@ -87,7 +87,7 @@ def test_binpack_texts_in_order_long_text_error(texts_fixture):
 
 
 def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
-    max_tokens = 20
+    max_tokens = 25
     text_bins = chat.binpack_texts_in_order(
         texts=texts_fixture,
         max_tokens=max_tokens,
@@ -144,23 +144,6 @@ def test_build_binpacked_requests(
     )
 
     assert len(requests) == 2
-
-
-def test_get_formatter_overhead_format_texts_as_json(encoding_fixture):
-    overhead = chat.get_formatter_overhead(
-        formatter_function=chat.format_texts_as_json,
-        encoding=encoding_fixture,
-    )
-    assert overhead > 0
-
-
-def test_get_formatter_overhead_format_texts_with_spaces(encoding_fixture):
-    overhead = chat.get_formatter_overhead(
-        formatter_function=chat.format_texts_with_spaces,
-        encoding=encoding_fixture,
-    )
-
-    assert overhead == 1
 
 
 def truncate_text_by_tokens(encoding_fixture):

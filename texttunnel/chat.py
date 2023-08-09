@@ -2,7 +2,6 @@ from typing import Any, Callable, Dict, List, Optional
 from dataclasses import dataclass
 import tiktoken
 import json
-import math
 
 
 FunctionDef = Dict[str, str]
@@ -28,10 +27,10 @@ def get_formatter_overhead(
     formatter_function: Callable[[List[str]], str], encoding: tiktoken.core.Encoding
 ) -> int:
     """
-    Returns the number of tokens added by a formatter function.
-    The overhead is calculated by passing two empty texts, measuring the
-    number of tokens in the output, dividing by two and rounding up.
-    This may not be accurate for all formatter functions.
+    Returns the number of tokens added by a formatter function, on top of
+    a single token text. Note that this doesn't take into account
+    extra escaping characters that may be added by the formatter function when
+    the input is a more complex text.
 
     Args:
         formatter_function: A function that takes a list of texts and returns a single
@@ -41,9 +40,9 @@ def get_formatter_overhead(
     Returns:
         The number of tokens added by the formatter function.
     """
-    overhead_tokens = len(encoding.encode(formatter_function(["", ""])))
+    overhead_tokens = len(encoding.encode(formatter_function(["hello"])))
 
-    return math.ceil(overhead_tokens / 2)
+    return overhead_tokens
 
 
 def truncate_text_by_tokens(
@@ -148,8 +147,6 @@ def binpack_texts_in_order(
 
     encoding = tiktoken.get_encoding(encoding_name)
 
-    overhead_tokens = get_formatter_overhead(formatter_function, encoding)
-
     # Binpack the texts
     # Initialize the first bin
     bins = []
@@ -170,25 +167,37 @@ def binpack_texts_in_order(
             current_bin_texts = 0
 
             # Check if the text is too long to fit in a bin
-            tokens_new_text_only = len(encoding.encode(formatter_function([text])))
+            tokens_new_text_formatted = len(encoding.encode(formatter_function([text])))
+            tokens_new_text_raw = len(encoding.encode(text))
+            overhead = tokens_new_text_formatted - tokens_new_text_raw
 
-            if tokens_new_text_only > max_tokens:
+            if overhead > max_tokens:
+                raise ValueError(
+                    f"""
+                    The formatting function adds {overhead} overhead tokens,
+                    which exceeds the maximum number of tokens ({max_tokens}) permitted.
+                    """
+                )
+
+            if tokens_new_text_formatted > max_tokens:
+                # The formatted text is too long to fit in a bin
                 if long_text_handling == "error":
                     raise ValueError(
                         f"""
                         The text at index {i} has {bin_tokens_with_new_text} tokens, which
                         is greater than the maximum number of tokens ({max_tokens}).
-                        Formatter overhead is {overhead_tokens} tokens.
+                        Note that a formatting function added {overhead} tokens to the text.
                         """
                     )
 
                 elif long_text_handling == "truncate":
                     text = truncate_text_by_tokens(
                         text=text,
-                        max_tokens=max_tokens - overhead_tokens,
+                        max_tokens=max_tokens - overhead,
                         encoding=encoding,
                     )
-                    bin_tokens_with_new_text = len(encoding.encode(text))
+
+                    assert len(encoding.encode(formatter_function([text]))) <= max_tokens
 
                 else:
                     raise ValueError(
