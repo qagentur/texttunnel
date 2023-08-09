@@ -215,7 +215,6 @@ async def aprocess_api_requests(
 
     # initialize API constants
     request_url = "https://api.openai.com/v1/chat/completions"
-    api_endpoint = "chat/completions"
     request_header = {"Authorization": f"Bearer {api_key}"}
 
     # initialize trackers
@@ -269,7 +268,7 @@ async def aprocess_api_requests(
                     task_id=next(task_id_generator),
                     request_json=request_json,
                     token_consumption=num_tokens_consumed_from_request(
-                        request_json, api_endpoint, token_encoding_name
+                        request_json, token_encoding_name
                     ),
                     attempts_left=max_attempts,
                     metadata=request_json.pop("metadata", None),
@@ -456,68 +455,31 @@ def append_to_jsonl(data: Any, filename: str) -> None:
 
 def num_tokens_consumed_from_request(
     request_json: dict,
-    api_endpoint: str,
     token_encoding_name: str,
 ):
     """
-    Count the number of tokens in the request. Only supports completion and embedding requests.
+    Count the number of tokens in the request.
 
     Args:
         request_json: The JSON payload of the request.
-        api_endpoint: The API endpoint of the request.
         token_encoding_name: The name of the token encoding to use.
     """
     encoding = tiktoken.get_encoding(token_encoding_name)
-    # if completions request, tokens = prompt + n * max_tokens
-    if api_endpoint.endswith("completions"):
-        max_tokens = request_json.get("max_tokens", 15)
-        n = request_json.get("n", 1)
-        completion_tokens = n * max_tokens
+    
+    # tokens = prompt + n * max_tokens
+    max_tokens = request_json.get("max_tokens", 15)
+    n = request_json.get("n", 1)
+    completion_tokens = n * max_tokens
 
-        # chat completions
-        if api_endpoint.startswith("chat/"):
-            num_tokens = 0
-            for message in request_json["messages"]:
-                num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
-                for key, value in message.items():
-                    num_tokens += len(encoding.encode(value))
-                    if key == "name":  # if there's a name, the role is omitted
-                        num_tokens -= 1  # role is always required and always 1 token
-            num_tokens += 2  # every reply is primed with <im_start>assistant
-            return num_tokens + completion_tokens
-        # normal completions
-        else:
-            prompt = request_json["prompt"]
-            if isinstance(prompt, str):  # single prompt
-                prompt_tokens = len(encoding.encode(prompt))
-                num_tokens = prompt_tokens + completion_tokens
-                return num_tokens
-            elif isinstance(prompt, list):  # multiple prompts
-                prompt_tokens = sum([len(encoding.encode(p)) for p in prompt])
-                num_tokens = prompt_tokens + completion_tokens * len(prompt)
-                return num_tokens
-            else:
-                raise TypeError(
-                    'Expecting either string or list of strings for "prompt" field in completion request'
-                )
-    # if embeddings request, tokens = input tokens
-    elif api_endpoint == "embeddings":
-        input = request_json["input"]
-        if isinstance(input, str):  # single input
-            num_tokens = len(encoding.encode(input))
-            return num_tokens
-        elif isinstance(input, list):  # multiple inputs
-            num_tokens = sum([len(encoding.encode(i)) for i in input])
-            return num_tokens
-        else:
-            raise TypeError(
-                'Expecting either string or list of strings for "inputs" field in embedding request'
-            )
-    # more logic needed to support other API calls (e.g., edits, inserts, DALL-E)
-    else:
-        raise NotImplementedError(
-            f'API endpoint "{api_endpoint}" not implemented in this script'
-        )
+    num_tokens = 0
+    for message in request_json["messages"]:
+        num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
+        for key, value in message.items():
+            num_tokens += len(encoding.encode(value))
+            if key == "name":  # if there's a name, the role is omitted
+                num_tokens -= 1  # role is always required and always 1 token
+    num_tokens += 2  # every reply is primed with <im_start>assistant
+    return num_tokens + completion_tokens
 
 
 def task_id_generator_function() -> Generator[int, None, None]:
