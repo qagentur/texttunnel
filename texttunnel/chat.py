@@ -24,28 +24,6 @@ def num_tokens_from_text(text: str, encoding_name: str = "cl100k_base") -> int:
     return num_tokens
 
 
-def get_formatter_overhead(
-    formatter_function: Callable[[List[str]], str], encoding: tiktoken.core.Encoding
-) -> int:
-    """
-    Returns the number of tokens added by a formatter function, on top of
-    a single token text. Note that this doesn't take into account
-    extra escaping characters that may be added by the formatter function when
-    the input is a more complex text.
-
-    Args:
-        formatter_function: A function that takes a list of texts and returns a single
-            text.
-        encoding: The encoding to use.
-
-    Returns:
-        The number of tokens added by the formatter function.
-    """
-    overhead_tokens = len(encoding.encode(formatter_function(["hello"])))
-
-    return overhead_tokens
-
-
 def truncate_text_by_tokens(
     text: str,
     max_tokens: int,
