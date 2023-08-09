@@ -24,21 +24,25 @@
 # SOFTWARE.
 
 # imports
-import aiohttp  # for making API calls concurrently
 import asyncio  # for running API calls concurrently
-from hashlib import sha256  # for hashing API inputs
 import json  # for saving results to a jsonl file
 import logging  # for logging rate limit warnings and other messages
 import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
-import tiktoken  # for counting tokens
-from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
-from pathlib import Path  # for saving results to a file
 import time  # for sleeping after rate limit is hit
 from dataclasses import (
     dataclass,
     field,
-)  # for storing API inputs, outputs, and metadata
+)
+from hashlib import sha256  # for hashing API inputs
+from pathlib import Path  # for saving results to a file
+from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
+
+import aiohttp  # for making API calls concurrently
+
+# for storing API inputs, outputs, and metadata
+import diskcache as dc  # for caching API responses
+import tiktoken  # for counting tokens
 
 from texttunnel.chat import ChatCompletionRequest
 
@@ -59,6 +63,7 @@ def process_api_requests(
     rate_limit_headroom_factor: float = 0.75,
     token_encoding_name: str = "cl100k_base",
     api_key: Optional[str] = None,
+    cache: Optional[dc.core.Cache] = None,
 ) -> List[Dict[str, Any]]:
     """
 
@@ -115,6 +120,10 @@ def process_api_requests(
             API key to use
             if omitted, the function will attempt to read it from an environment
             variable {os.getenv("OPENAI_API_KEY")}
+        cache: diskcache.Cache, optional
+            If provided, API responses will be served from the cache if available.
+            New responses will be saved to the cache.
+            Create a cache object with `diskcache.Cache("path/to/cache")`
 
     Returns:
         List[Dict[str, Any]]: list where each element consists of two dictionaries:
@@ -156,6 +165,7 @@ def process_api_requests(
             rate_limit_headroom_factor,
             token_encoding_name,
             api_key,
+            cache,
         )
     )
 
@@ -190,6 +200,7 @@ async def aprocess_api_requests(
     rate_limit_headroom_factor: float,
     token_encoding_name: str,
     api_key: Optional[str] = None,
+    cache: Optional[dc.Cache] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # constants
@@ -318,6 +329,7 @@ async def aprocess_api_requests(
                         retry_queue=queue_of_requests_to_retry,
                         save_filepath=save_filepath,
                         status_tracker=status_tracker,
+                        cache=cache,
                     )
                 )
                 next_request = None  # reset next_request to empty
@@ -389,35 +401,51 @@ class APIRequest:
         retry_queue: asyncio.Queue,
         save_filepath: Path,
         status_tracker: StatusTracker,
+        cache: Optional[dc.core.Cache] = None,
     ):
         """Calls the OpenAI API and saves results."""
-        logging.info(f"Starting request #{self.task_id}")
-        error = None
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url=request_url, headers=request_header, json=self.request_json
-                ) as response:
-                    response = await response.json()
-            if "error" in response:
-                logging.warning(
-                    f"Request {self.task_id} failed with error {response['error']}"
-                )
-                status_tracker.num_api_errors += 1
-                error = response
-                if "Rate limit" in response["error"].get("message", ""):
-                    status_tracker.time_of_last_rate_limit_error = int(time.time())
-                    status_tracker.num_rate_limit_errors += 1
-                    status_tracker.num_api_errors -= (
-                        1  # rate limit errors are counted separately
-                    )
 
-        except (
-            Exception
-        ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
-            logging.warning(f"Request {self.task_id} failed with Exception {e}")
-            status_tracker.num_other_errors += 1
-            error = e
+        # Check if the request is cached
+        cache_hit = False
+
+        if cache is not None:
+            cache_key = hash_dict(self.request_json)
+
+            if cache_key in cache:
+                logging.info(f"Request #{self.task_id} is cached")
+                response = cache[cache_key]
+                cache_hit = True
+
+        
+        error = None
+
+        if not cache_hit:
+            logging.info(f"Starting request #{self.task_id}")
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        url=request_url, headers=request_header, json=self.request_json
+                    ) as response:
+                        response = await response.json()
+                if "error" in response:
+                    logging.warning(
+                        f"Request {self.task_id} failed with error {response['error']}"
+                    )
+                    status_tracker.num_api_errors += 1
+                    error = response
+                    if "Rate limit" in response["error"].get("message", ""):
+                        status_tracker.time_of_last_rate_limit_error = int(time.time())
+                        status_tracker.num_rate_limit_errors += 1
+                        status_tracker.num_api_errors -= (
+                            1  # rate limit errors are counted separately
+                        )
+
+            except (
+                Exception
+            ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
+                logging.warning(f"Request {self.task_id} failed with Exception {e}")
+                status_tracker.num_other_errors += 1
+                error = e
 
         if error:
             self.result.append(error)
@@ -445,6 +473,10 @@ class APIRequest:
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
             logging.debug(f"Request {self.task_id} saved to {save_filepath}")
+
+            if cache is not None and not cache_hit:
+                cache[cache_key] = response
+                logging.debug(f"Request {self.task_id} cached")
 
 
 # functions
