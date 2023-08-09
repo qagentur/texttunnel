@@ -1,4 +1,4 @@
-from texttunnel import chat
+from texttunnel import chat, models
 import pytest
 import tiktoken
 
@@ -32,7 +32,7 @@ def function_fixture():
 
 @pytest.fixture
 def model_fixture():
-    return chat.Model(
+    return models.Model(
         name="gpt-3.5-turbo",
         context_size=4000,
         input_token_price_per_1k=0.002,
@@ -55,6 +55,12 @@ def texts_fixture():
 @pytest.fixture
 def encoding_fixture():
     return tiktoken.get_encoding("cl100k_base")
+
+
+def test_chat_add_message(chat_fixture):
+    chat_fixture.add_message(message=chat.ChatMessage(role="user", content="Hi!"))
+    assert len(chat_fixture.messages) == 3
+    assert chat_fixture.messages[2].content == "Hi!"
 
 
 def test_num_tokens_from_text(texts_fixture):

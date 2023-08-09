@@ -1,7 +1,8 @@
 from typing import Any, Callable, Dict, List, Optional
-from dataclasses import dataclass
 import tiktoken
 import json
+
+from texttunnel.models import Model
 
 
 FunctionDef = Dict[str, str]
@@ -197,7 +198,9 @@ def binpack_texts_in_order(
                         encoding=encoding,
                     )
 
-                    assert len(encoding.encode(formatter_function([text]))) <= max_tokens
+                    assert (
+                        len(encoding.encode(formatter_function([text]))) <= max_tokens
+                    )
 
                 else:
                     raise ValueError(
@@ -276,6 +279,15 @@ class Chat:
         """
         return len(self.messages)
 
+    def add_message(self, message: ChatMessage) -> None:
+        """
+        Adds a message to the end of the chat.
+
+        Args:
+            message: The message to add.
+        """
+        self.messages.append(message)
+
     def to_list(self) -> List[Dict[str, str]]:
         """
         Returns a list of dictionaries representing the chat messages.
@@ -288,32 +300,6 @@ class Chat:
         Returns the number of tokens in all of the messages in the chat.
         """
         return sum(message.count_tokens() for message in self.messages)
-
-
-@dataclass
-class Model:
-    """
-    Information about an OpenAI ChatCompletion model.
-    Check prices here: https://openai.com/pricing
-
-    Note that rate limits differ between OpenAI accounts.
-    Check them here: https://platform.openai.com/account/rate-limits
-
-    Args:
-        name: The name of the model, e.g. "gpt-3.5-turbo".
-        context_size: The maximum number of tokens that can be passed to the model.
-        input_token_price_per_1k: The price in USD per 1000 tokens for input.
-        output_token_price_per_1k: The price in USD per 1000 tokens for output.
-        tokens_per_minute: The maximum number of tokens that can be processed per minute.
-        requests_per_minute: The maximum number of requests that can be made per minute.
-    """
-
-    name: str
-    context_size: int
-    input_token_price_per_1k: float
-    output_token_price_per_1k: float
-    tokens_per_minute: int
-    requests_per_minute: int
 
 
 class ChatCompletionRequest:
@@ -348,7 +334,7 @@ class ChatCompletionRequest:
 
         self.model_params = model_params or {}
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> Dict[str, Any]:
         """
         Returns a dictionary representation of the request. Only includes
         the elements that are required by the OpenAI API. Model parameters
@@ -364,7 +350,9 @@ class ChatCompletionRequest:
 
     def count_tokens(self) -> int:
         """
-        Counts the number of tokens in the request.
+        Counts the number of tokens that will be used as input to the model.
+        This includes the chat messages and the function call. Note that
+        the output tokens are not counted and depend on the model's response.
         """
         chat_tokens = self.chat.count_tokens()
         function_tokens = num_tokens_from_text(json.dumps(self.function_call))
