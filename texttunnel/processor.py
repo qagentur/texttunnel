@@ -23,75 +23,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-"""
-API REQUEST PARALLEL PROCESSOR
-
-Using the OpenAI API to process lots of text quickly takes some care.
-If you trickle in a million API requests one by one, they'll take days to complete.
-If you flood a million API requests in parallel, they'll exceed the rate limits and fail with errors.
-To maximize throughput, parallel requests need to be throttled to stay under rate limits.
-
-This script parallelizes requests to the OpenAI API while throttling to stay under rate limits.
-
-Features:
-- Streams requests from file, to avoid running out of memory for giant jobs
-- Makes requests concurrently, to maximize throughput
-- Throttles request and token usage, to stay under rate limits
-- Retries failed requests up to {max_attempts} times, to avoid missing data
-- Logs errors, to diagnose problems with requests
-
-Inputs:
-- requests: List[ChatCompletionRequest]
-    - the requests to process, see ChatCompletionRequest class for details
-- save_filepath: str, optional
-    - path to the file where the results will be saved
-    - file will be a jsonl file, where each line is an array with the original request plus the API response
-    - e.g., [{"model": "text-embedding-ada-002", "input": "embed me"}, {...}]
-    - if omitted, results will be saved to {requests_filename}_results.jsonl
-- logging_level: int, optional
-    - level of logging to use; higher numbers will log fewer messages
-    - 40 = ERROR; will log only when requests fail after all retries
-    - 30 = WARNING; will log when requests his rate limits or other errors
-    - 20 = INFO; will log when requests start and the status at finish
-    - 10 = DEBUG; will log various things as the loop runs to see when they occur
-    - if omitted, will default to 20 (INFO).
-- max_attempts: int, optional
-    - number of times to retry a failed request before giving up
-    - if omitted, will default to 5
-- rate_limit_headroom_factor: float, optional
-    - factor to multiply the rate limit by to guarantee that the script stays under the limit
-    - if omitted, will default to 0.75 (75% of the rate limit)
-- token_encoding_name: str, optional
-    - name of the token encoding used, as defined in the `tiktoken` package
-    - if omitted, will default to "cl100k_base" (used by `text-embedding-ada-002`)
-- request_url: str, optional
-    - URL of the API endpoint to call
-    - if omitted, will default to "https://api.openai.com/v1/chat/completions"
-- api_key: str, optional
-    - API key to use
-    - if omitted, the function will attempt to read it from an environment variable {os.getenv("OPENAI_API_KEY")}
-
-
-The script is structured as follows:
-    - Imports
-    - Define process_api_requests()
-        - Initialize things
-        - In process_api_requests loop:
-            - Get next request if one is not already waiting for capacity
-            - Update available token & request capacity
-            - If enough capacity available, call API
-            - The loop pauses if a rate limit error is hit
-            - The loop breaks when no tasks remain
-    - Define dataclasses
-        - StatusTracker (stores script metadata counters; only one instance is created)
-        - APIRequest (stores API inputs, outputs, metadata; one method to call API)
-    - Define functions
-        - api_endpoint_from_url (extracts API endpoint from request URL)
-        - append_to_jsonl (writes to results file)
-        - num_tokens_consumed_from_request (bigger function to infer token usage from request)
-        - task_id_generator_function (yields 1, 2, 3, ...)
-"""
-
 # imports
 import aiohttp  # for making API calls concurrently
 import asyncio  # for running API calls concurrently
@@ -100,9 +31,8 @@ import json  # for saving results to a jsonl file
 import logging  # for logging rate limit warnings and other messages
 import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
-import re  # for matching endpoint from request URL
 import tiktoken  # for counting tokens
-from typing import Any, Dict, List, Optional, Union  # for type hints
+from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 from pathlib import Path  # for saving results to a file
 import time  # for sleeping after rate limit is hit
 from dataclasses import (
@@ -128,14 +58,79 @@ def process_api_requests(
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     token_encoding_name: str = "cl100k_base",
-    request_url: str = "https://api.openai.com/v1/chat/completions",
     api_key: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
+
+    Using the OpenAI API to process lots of text quickly takes some care.
+    If you trickle in a million API requests one by one, they'll take days to complete.
+    If you flood a million API requests in parallel, they'll exceed the rate limits
+    and fail with errors. To maximize throughput, parallel requests need to be
+    throttled to stay under rate limits.
+
+    The following functions parallelizes requests to the OpenAI API while
+    throttling to stay under rate limits.
+
+    Features:
+    - Streams requests from file, to avoid running out of memory for giant jobs
+    - Makes requests concurrently, to maximize throughput
+    - Throttles request and token usage, to stay under rate limits
+    - Retries failed requests up to {max_attempts} times, to avoid missing data
+    - Logs errors, to diagnose problems with requests
+
     Processes API requests in parallel, throttling to stay under rate limits.
-    This function is a wrapper for aprocess_api_requests() that runs it in an asyncio event loop.
-    Also sorts the output by request ID, so that the results are in the same order as the requests.
+    This function is a wrapper for aprocess_api_requests() that runs it in an asyncio
+    event loop. Also sorts the output by request ID, so that the results are in
+    the same order as the requests.
+
+    Args:
+        requests: List[ChatCompletionRequest]
+            the requests to process, see ChatCompletionRequest class for details
+        save_filepath: str, optional
+            path to the file where the results will be saved
+            file will be a jsonl file, where each line is an array with the original
+            request plus the API response e.g.,
+            [{"model": "gpt-4", "messages": "..."}, {...}]
+            if omitted, results will be saved to {requests_filename}_results.jsonl
+        keep_file: bool, optional
+            Whether to keep the results file after the script finishes.
+        logging_level: int, optional
+            level of logging to use; higher numbers will log fewer messages
+            40 = ERROR; will log only when requests fail after all retries
+            30 = WARNING; will log when requests his rate limits or other errors
+            20 = INFO; will log when requests start and the status at finish
+            10 = DEBUG; will log various things as the loop runs to see when they occur
+            if omitted, will default to 20 (INFO).
+        max_attempts: int, optional
+            number of times to retry a failed request before giving up
+            if omitted, will default to 5
+        rate_limit_headroom_factor: float, optional
+            factor to multiply the rate limit by to guarantee that the script
+            stays under the limit if omitted, will default to 0.75
+            (75% of the rate limit)
+        token_encoding_name: str, optional
+            name of the token encoding used, as defined in the `tiktoken` package
+            if omitted, will default to "cl100k_base" (used by GPT-3.5 and 4)
+        api_key: str, optional
+            API key to use
+            if omitted, the function will attempt to read it from an environment
+            variable {os.getenv("OPENAI_API_KEY")}
+
+    Returns:
+        List[Dict[str, Any]]: list where each element consists of two dictionaries:
+            - the original request
+            - the API response
     """
+
+    # The function is structured as follows:
+    #    - Initialize things
+    #    - In process_api_requests loop:
+    #        - Get next request if one is not already waiting for capacity
+    #        - Update available token & request capacity
+    #        - If enough capacity available, call API
+    #        - The loop pauses if a rate limit error is hit
+    #        - The loop breaks when no tasks remain
+
     # Handle Notebook environment
     if "ipykernel" in sys.modules:
         import nest_asyncio
@@ -160,7 +155,6 @@ def process_api_requests(
             max_attempts,
             rate_limit_headroom_factor,
             token_encoding_name,
-            request_url,
             api_key,
         )
     )
@@ -195,7 +189,6 @@ async def aprocess_api_requests(
     max_attempts: int,
     rate_limit_headroom_factor: float,
     token_encoding_name: str,
-    request_url: str,
     api_key: Optional[str] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
@@ -226,8 +219,8 @@ async def aprocess_api_requests(
     logging.basicConfig(level=logging_level)
     logging.debug(f"Logging initialized at level {logging_level}")
 
-    # infer API endpoint and construct request header
-    api_endpoint = api_endpoint_from_url(request_url)
+    # initialize API constants
+    request_url = "https://api.openai.com/v1/chat/completions"
     request_header = {"Authorization": f"Bearer {api_key}"}
 
     # initialize trackers
@@ -281,7 +274,7 @@ async def aprocess_api_requests(
                     task_id=next(task_id_generator),
                     request_json=request_json,
                     token_consumption=num_tokens_consumed_from_request(
-                        request_json, api_endpoint, token_encoding_name
+                        request_json, token_encoding_name
                     ),
                     attempts_left=max_attempts,
                     metadata=request_json.pop("metadata", None),
@@ -363,8 +356,6 @@ async def aprocess_api_requests(
 
 
 # dataclasses
-
-
 @dataclass
 class StatusTracker:
     """Stores metadata about the script's progress. Only one instance is created."""
@@ -381,7 +372,8 @@ class StatusTracker:
 
 @dataclass
 class APIRequest:
-    """Stores an API request's inputs, outputs, and other metadata. Contains a method to make an API call."""
+    """Stores an API request's inputs, outputs, and other metadata.
+    Contains a method to make an API call."""
 
     task_id: int
     request_json: dict
@@ -414,7 +406,7 @@ class APIRequest:
                 status_tracker.num_api_errors += 1
                 error = response
                 if "Rate limit" in response["error"].get("message", ""):
-                    status_tracker.time_of_last_rate_limit_error = time.time()
+                    status_tracker.time_of_last_rate_limit_error = int(time.time())
                     status_tracker.num_rate_limit_errors += 1
                     status_tracker.num_api_errors -= (
                         1  # rate limit errors are counted separately
@@ -426,6 +418,7 @@ class APIRequest:
             logging.warning(f"Request {self.task_id} failed with Exception {e}")
             status_tracker.num_other_errors += 1
             error = e
+
         if error:
             self.result.append(error)
             if self.attempts_left:
@@ -455,16 +448,14 @@ class APIRequest:
 
 
 # functions
+def append_to_jsonl(data: Any, filename: Path) -> None:
+    """
+    Append a json payload to the end of a jsonl file.
 
-
-def api_endpoint_from_url(request_url):
-    """Extract the API endpoint from the request URL."""
-    match = re.search("^https://[^/]+/v\\d+/(.+)$", request_url)
-    return match[1]
-
-
-def append_to_jsonl(data, filename: str) -> None:
-    """Append a json payload to the end of a jsonl file."""
+    Args:
+        data: The data to append.
+        filename: The file to append to.
+    """
     json_string = json.dumps(data)
     with open(filename, "a") as f:
         f.write(json_string + "\n")
@@ -472,65 +463,42 @@ def append_to_jsonl(data, filename: str) -> None:
 
 def num_tokens_consumed_from_request(
     request_json: dict,
-    api_endpoint: str,
     token_encoding_name: str,
 ):
-    """Count the number of tokens in the request. Only supports completion and embedding requests."""
+    """
+    Count the number of tokens in the request.
+
+    Args:
+        request_json: The JSON payload of the request.
+        token_encoding_name: The name of the token encoding to use.
+    """
     encoding = tiktoken.get_encoding(token_encoding_name)
-    # if completions request, tokens = prompt + n * max_tokens
-    if api_endpoint.endswith("completions"):
-        max_tokens = request_json.get("max_tokens", 15)
-        n = request_json.get("n", 1)
-        completion_tokens = n * max_tokens
 
-        # chat completions
-        if api_endpoint.startswith("chat/"):
-            num_tokens = 0
-            for message in request_json["messages"]:
-                num_tokens += 4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
-                for key, value in message.items():
-                    num_tokens += len(encoding.encode(value))
-                    if key == "name":  # if there's a name, the role is omitted
-                        num_tokens -= 1  # role is always required and always 1 token
-            num_tokens += 2  # every reply is primed with <im_start>assistant
-            return num_tokens + completion_tokens
-        # normal completions
-        else:
-            prompt = request_json["prompt"]
-            if isinstance(prompt, str):  # single prompt
-                prompt_tokens = len(encoding.encode(prompt))
-                num_tokens = prompt_tokens + completion_tokens
-                return num_tokens
-            elif isinstance(prompt, list):  # multiple prompts
-                prompt_tokens = sum([len(encoding.encode(p)) for p in prompt])
-                num_tokens = prompt_tokens + completion_tokens * len(prompt)
-                return num_tokens
-            else:
-                raise TypeError(
-                    'Expecting either string or list of strings for "prompt" field in completion request'
-                )
-    # if embeddings request, tokens = input tokens
-    elif api_endpoint == "embeddings":
-        input = request_json["input"]
-        if isinstance(input, str):  # single input
-            num_tokens = len(encoding.encode(input))
-            return num_tokens
-        elif isinstance(input, list):  # multiple inputs
-            num_tokens = sum([len(encoding.encode(i)) for i in input])
-            return num_tokens
-        else:
-            raise TypeError(
-                'Expecting either string or list of strings for "inputs" field in embedding request'
-            )
-    # more logic needed to support other API calls (e.g., edits, inserts, DALL-E)
-    else:
-        raise NotImplementedError(
-            f'API endpoint "{api_endpoint}" not implemented in this script'
+    # tokens = prompt + n * max_tokens
+    max_tokens = request_json.get("max_tokens", 15)
+    n = request_json.get("n", 1)
+    completion_tokens = n * max_tokens
+
+    num_tokens = 0
+    for message in request_json["messages"]:
+        num_tokens += (
+            4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
         )
+        for key, value in message.items():
+            num_tokens += len(encoding.encode(value))
+            if key == "name":  # if there's a name, the role is omitted
+                num_tokens -= 1  # role is always required and always 1 token
+    num_tokens += 2  # every reply is primed with <im_start>assistant
+    return num_tokens + completion_tokens
 
 
-def task_id_generator_function():
-    """Generate integers 0, 1, 2, and so on."""
+def task_id_generator_function() -> Generator[int, None, None]:
+    """
+    Generate integers 0, 1, 2, and so on.
+
+    Returns:
+        A generator that yields integers.
+    """
     task_id = 0
     while True:
         yield task_id
@@ -538,12 +506,28 @@ def task_id_generator_function():
 
 
 def parse_response(response: List[Dict]) -> Dict[str, Any]:
-    """Extract the function call arguments from a response."""
+    """
+    Extract the function call arguments from a response.
+
+    Args:
+        response: The response to parse.
+
+    Returns:
+        The function call arguments.
+    """
     return json.loads(
         response[1]["choices"][0]["message"]["function_call"]["arguments"]
     )
 
 
 def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
-    """Extract the function call arguments from a list of responses."""
+    """
+    Extract the function call arguments from a list of responses.
+
+    Args:
+        responses: List of responses to parse.
+
+    Returns:
+        List where each element is the function call arguments for a response.
+    """
     return [parse_response(r) for r in responses]
