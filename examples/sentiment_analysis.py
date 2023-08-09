@@ -1,5 +1,10 @@
 # %%
 from texttunnel import chat, models, processor
+from diskcache import Cache
+
+# Create a cache to store the results of the requests
+# When this script is run again, the results will be loaded from the cache
+cache = Cache("mycache")
 
 # Texts that we'd like to know the sentiment of
 input_texts = [
@@ -53,7 +58,8 @@ responses = processor.process_api_requests(
     requests=requests,
     save_filepath="output.jsonl",
     keep_file=False,
-    logging_level=50,  # only log errors
+    logging_level=20,  # log INFO and above
+    cache=cache, # use diskcache to cache API responses
 )
 
 # %%
