@@ -64,10 +64,12 @@ def process_api_requests(
 
     Using the OpenAI API to process lots of text quickly takes some care.
     If you trickle in a million API requests one by one, they'll take days to complete.
-    If you flood a million API requests in parallel, they'll exceed the rate limits and fail with errors.
-    To maximize throughput, parallel requests need to be throttled to stay under rate limits.
+    If you flood a million API requests in parallel, they'll exceed the rate limits
+    and fail with errors. To maximize throughput, parallel requests need to be
+    throttled to stay under rate limits.
 
-    The following functions parallelizes requests to the OpenAI API while throttling to stay under rate limits.
+    The following functions parallelizes requests to the OpenAI API while
+    throttling to stay under rate limits.
 
     Features:
     - Streams requests from file, to avoid running out of memory for giant jobs
@@ -77,16 +79,18 @@ def process_api_requests(
     - Logs errors, to diagnose problems with requests
 
     Processes API requests in parallel, throttling to stay under rate limits.
-    This function is a wrapper for aprocess_api_requests() that runs it in an asyncio event loop.
-    Also sorts the output by request ID, so that the results are in the same order as the requests.
+    This function is a wrapper for aprocess_api_requests() that runs it in an asyncio
+    event loop. Also sorts the output by request ID, so that the results are in
+    the same order as the requests.
 
     Args:
         requests: List[ChatCompletionRequest]
             the requests to process, see ChatCompletionRequest class for details
         save_filepath: str, optional
             path to the file where the results will be saved
-            file will be a jsonl file, where each line is an array with the original request plus the API response
-            e.g., [{"model": "gpt-4", "messages": "..."}, {...}]
+            file will be a jsonl file, where each line is an array with the original
+            request plus the API response e.g.,
+            [{"model": "gpt-4", "messages": "..."}, {...}]
             if omitted, results will be saved to {requests_filename}_results.jsonl
         keep_file: bool, optional
             Whether to keep the results file after the script finishes.
@@ -101,14 +105,16 @@ def process_api_requests(
             number of times to retry a failed request before giving up
             if omitted, will default to 5
         rate_limit_headroom_factor: float, optional
-            factor to multiply the rate limit by to guarantee that the script stays under the limit
-            if omitted, will default to 0.75 (75% of the rate limit)
+            factor to multiply the rate limit by to guarantee that the script
+            stays under the limit if omitted, will default to 0.75
+            (75% of the rate limit)
         token_encoding_name: str, optional
             name of the token encoding used, as defined in the `tiktoken` package
             if omitted, will default to "cl100k_base" (used by GPT-3.5 and 4)
         api_key: str, optional
             API key to use
-            if omitted, the function will attempt to read it from an environment variable {os.getenv("OPENAI_API_KEY")}
+            if omitted, the function will attempt to read it from an environment
+            variable {os.getenv("OPENAI_API_KEY")}
 
     Returns:
         List[Dict[str, Any]]: list where each element consists of two dictionaries:
@@ -366,7 +372,8 @@ class StatusTracker:
 
 @dataclass
 class APIRequest:
-    """Stores an API request's inputs, outputs, and other metadata. Contains a method to make an API call."""
+    """Stores an API request's inputs, outputs, and other metadata.
+    Contains a method to make an API call."""
 
     task_id: int
     request_json: dict
