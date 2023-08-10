@@ -65,6 +65,9 @@ def format_texts_as_json(texts: List[str]) -> str:
         A formatted string that can be used as a user message.
     """
 
+    if not isinstance(texts, list):
+        raise ValueError("texts must be a list.")
+
     text_dicts = [
         {
             "id": i,
