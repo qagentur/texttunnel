@@ -21,7 +21,9 @@ def texts_fixture_long():
     min_length = 10
     max_length = 1000
 
-    text_lengths = range(min_length, max_length, 10)  # 100 variations of text length
+    text_lengths = range(
+        min_length, max_length + 10, 10  # range is not inclusive
+    )  # 100 variations of text length
 
     j = 0
 
@@ -70,6 +72,17 @@ def test_binpack_texts_in_order_overhead_too_long_error(texts_fixture):
             texts=texts_fixture,
             max_tokens_per_bin=5,  # too small for overhead (12)
             formatter_function=utils.format_texts_as_json,
+        )
+
+
+def test_binpack_texts_in_order_single_overlong_text(texts_fixture_long):
+    max_tokens_per_bin = 1000
+    with pytest.raises(ValueError):  # Doesn't fit due to overhead
+        utils.binpack_texts_in_order(
+            texts=[texts_fixture_long[-1]],  # Last text has 1000 tokens
+            max_tokens_per_bin=max_tokens_per_bin,
+            formatter_function=utils.format_texts_as_json,
+            long_text_handling="error",
         )
 
 
