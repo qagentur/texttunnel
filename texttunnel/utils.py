@@ -160,10 +160,14 @@ def binpack_texts_in_order(
                 bins.append(current_bin)
                 current_bin = []
 
-            else:  # current bin is already empty
-                # Calculate the overhead
+            # Check if the text fits in a bin by itself
+            tokens_text_with_formatting = len(encoding.encode(formatter_function([text])))
+
+            if tokens_text_with_formatting > max_tokens_per_bin: # doesn't fit
+
+                # Calculate the overhead of the formatter function
                 tokens_text_raw = len(encoding.encode(text))
-                overhead = bin_tokens_with_new_text - tokens_text_raw
+                overhead = tokens_text_with_formatting - tokens_text_raw
 
                 if overhead > max_tokens_per_bin:
                     raise ValueError(
@@ -211,7 +215,7 @@ def binpack_texts_in_order(
         # Add to the current bin
         current_bin.append(text)
 
-    if current_bin:
-        bins.append(current_bin)
+    # Add the last bin
+    bins.append(current_bin)
 
     return bins
