@@ -1,5 +1,6 @@
 import pytest
 import tiktoken
+import itertools
 
 from texttunnel import utils
 
@@ -96,6 +97,10 @@ def test_binpack_texts_in_order_long_texts(texts_fixture_long, encoding_fixture)
         formatter_function=utils.format_texts_as_json,
         long_text_handling="error",
     )
+
+    # All texts should be in a bin
+    flattened_bins = list(itertools.chain.from_iterable(text_bins))
+    assert len(flattened_bins) == len(texts_fixture_long)
 
     tokens_in_bins = [
         len(encoding_fixture.encode(utils.format_texts_as_json(text_bin)))
