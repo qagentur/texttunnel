@@ -25,10 +25,10 @@ def test_num_tokens_from_text(texts_fixture):
 
 
 def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
-    max_tokens = 40
+    max_tokens_per_bin = 40
     text_bins = utils.binpack_texts_in_order(
         texts=texts_fixture,
-        max_tokens=max_tokens,
+        max_tokens_per_bin=max_tokens_per_bin,
         formatter_function=utils.format_texts_as_json,
     )
 
@@ -36,23 +36,23 @@ def test_binpack_texts_in_order(texts_fixture, encoding_fixture):
         len(encoding_fixture.encode(utils.format_texts_as_json(text_bin)))
         for text_bin in text_bins
     ]
-    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
+    assert all([tokens <= max_tokens_per_bin for tokens in tokens_in_bins])
 
 
-def test_binpack_texts_in_order_long_text_error(texts_fixture):
+def test_binpack_texts_in_order_overhead_too_long_error(texts_fixture):
     with pytest.raises(ValueError):
         utils.binpack_texts_in_order(
             texts=texts_fixture,
-            max_tokens=5,
+            max_tokens_per_bin=5,  # too small for overhead (12)
             formatter_function=utils.format_texts_as_json,
         )
 
 
 def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
-    max_tokens = 25
+    max_tokens_per_bin = 25
     text_bins = utils.binpack_texts_in_order(
         texts=texts_fixture,
-        max_tokens=max_tokens,
+        max_tokens_per_bin=max_tokens_per_bin,
         formatter_function=utils.format_texts_as_json,
         long_text_handling="truncate",
     )
@@ -61,7 +61,7 @@ def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
         len(encoding_fixture.encode(utils.format_texts_as_json(text_bin)))
         for text_bin in text_bins
     ]
-    assert all([tokens <= max_tokens for tokens in tokens_in_bins])
+    assert all([tokens <= max_tokens_per_bin for tokens in tokens_in_bins])
 
 
 def test_format_texts_as_json(texts_fixture):

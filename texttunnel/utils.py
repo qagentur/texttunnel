@@ -50,6 +50,8 @@ def format_texts_as_json(texts: List[str]) -> str:
     helps the model distinguish between different texts, at the cost of
     increasing the number of tokens used.
 
+    The token overhead for a single text is 12 tokens.
+
     The format is a JSON list of dictionaries, where each dictionary has an
     "id" key and a "text" key. The "id" key is an integer, and the "text" key
     is a string. This array of maps structure is easiest to parse by GPT models
@@ -82,7 +84,7 @@ def format_texts_with_spaces(texts: List[str]) -> str:
 
 def binpack_texts_in_order(
     texts: List[str],
-    max_tokens: int,
+    max_tokens_per_bin: int,
     formatter_function: Callable[[List[str]], str],
     max_texts: Optional[int] = None,
     encoding_name: str = "cl100k_base",
@@ -90,7 +92,7 @@ def binpack_texts_in_order(
 ) -> List[List[str]]:
     """
     Binpacks a list of texts into a list of lists of texts, such that each list of texts
-    has a total number of tokens less than or equal to max_tokens and each list of texts
+    has a total number of tokens less than or equal to max_tokens_per_bin and each list of texts
     has a number of texts less than or equal to max_texts.
 
     The binpacking uses a naive greedy algorithm that maintains the order of the texts.
@@ -103,15 +105,15 @@ def binpack_texts_in_order(
             This function is used to include the overhead of the formatter function in
             the binpacking. It is not used to format the output. Make sure to use
             the same formatter function when formatting the output for the model.
-        max_tokens: The maximum number of tokens per list of texts. Leave some room for
+        max_tokens_per_bin: The maximum number of tokens per list of texts. Leave some room for
             relative to the model's context size to account for the tokens in the
             system message, function call, and function return.
         max_texts: The maximum number of texts per list of texts. Defaults to None, which
             means that there is no limit on the number of texts per list of texts.
         encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
-        long_text_handling: How to handle texts that are longer than max_tokens. Defaults
+        long_text_handling: How to handle texts that are longer than max_tokens_per_bin. Defaults
             to "error", which means that an error is raised. Can also be set to
-            "truncate", which means that the text is truncated to max_tokens.
+            "truncate", which means that the text is truncated to max_tokens_per_bin.
 
     Returns:
         A list of lists of texts. The order of the texts is preserved.
@@ -135,32 +137,33 @@ def binpack_texts_in_order(
             encoding.encode(formatter_function(current_bin + [text]))
         )
 
-        if bin_tokens_with_new_text > max_tokens or current_bin_texts == max_texts:
-            # Start a new bin
-            bins.append(current_bin)
-            current_bin = []
-            current_bin_texts = 0
+        if bin_tokens_with_new_text > max_tokens_per_bin or current_bin_texts == max_texts:
+            if len(current_bin) > 0:
+                # Start a new bin
+                bins.append(current_bin)
+                current_bin = []
+                current_bin_texts = 0
 
             # Check if the text is too long to fit in a bin
             tokens_new_text_formatted = len(encoding.encode(formatter_function([text])))
             tokens_new_text_raw = len(encoding.encode(text))
             overhead = tokens_new_text_formatted - tokens_new_text_raw
 
-            if overhead > max_tokens:
+            if overhead > max_tokens_per_bin:
                 raise ValueError(
                     f"""
                     The formatting function adds {overhead} overhead tokens,
-                    which exceeds the maximum number of tokens ({max_tokens}) permitted.
+                    which exceeds the maximum number of tokens ({max_tokens_per_bin}) permitted.
                     """
                 )
 
-            if tokens_new_text_formatted > max_tokens:
+            if tokens_new_text_formatted > max_tokens_per_bin:
                 # The formatted text is too long to fit in a bin
                 if long_text_handling == "error":
                     raise ValueError(
                         f"""
                         The text at index {i} has {bin_tokens_with_new_text} tokens, which
-                        is greater than the maximum number of tokens ({max_tokens}).
+                        is greater than the maximum number of tokens ({max_tokens_per_bin}).
                         Note that a formatting function added {overhead} tokens to the text.
                         """
                     )
@@ -168,12 +171,12 @@ def binpack_texts_in_order(
                 elif long_text_handling == "truncate":
                     text = truncate_text_by_tokens(
                         text=text,
-                        max_tokens=max_tokens - overhead,
+                        max_tokens=max_tokens_per_bin - overhead,
                         encoding=encoding,
                     )
 
                     assert (
-                        len(encoding.encode(formatter_function([text]))) <= max_tokens
+                        len(encoding.encode(formatter_function([text]))) <= max_tokens_per_bin
                     )
 
                 else:
