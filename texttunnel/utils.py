@@ -102,7 +102,7 @@ def binpack_texts_in_order(
     The binpacking uses a naive greedy algorithm that maintains the order of the texts.
 
     Args:
-        texts: The texts to binpack. Empty texts are accepted, counted as 0 tokens
+        texts: List of texts to binpack. Empty texts are accepted, counted as 0 tokens
             each and count against max_texts_per_bin.
         formatter_function: A function that takes a list of texts and returns a single
             text. Defaults to None, which means that the texts are joined with spaces.
@@ -124,6 +124,9 @@ def binpack_texts_in_order(
     Returns:
         A list of lists of texts. The order of the texts is preserved.
     """
+
+    if not isinstance(texts, list):
+        raise ValueError("texts must be a list.")
 
     if not max_texts_per_bin:
         max_texts_per_bin = len(texts)
