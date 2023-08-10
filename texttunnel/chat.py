@@ -1,5 +1,4 @@
 import json
-from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
 import tiktoken
@@ -131,32 +130,6 @@ class Chat:
         Returns the number of tokens in all of the messages in the chat.
         """
         return sum(message.count_tokens() for message in self.messages)
-
-
-@dataclass
-class Model:
-    """
-    Information about an OpenAI ChatCompletion model.
-    Check prices here: https://openai.com/pricing
-
-    Note that rate limits differ between OpenAI accounts.
-    Check them here: https://platform.openai.com/account/rate-limits
-
-    Args:
-        name: The name of the model, e.g. "gpt-3.5-turbo".
-        context_size: The maximum number of tokens that can be passed to the model.
-        input_token_price_per_1k: The price in USD per 1000 tokens for input.
-        output_token_price_per_1k: The price in USD per 1000 tokens for output.
-        tokens_per_minute: The maximum number of tokens that can be processed per minute.
-        requests_per_minute: The maximum number of requests that can be made per minute.
-    """
-
-    name: str
-    context_size: int
-    input_token_price_per_1k: float
-    output_token_price_per_1k: float
-    tokens_per_minute: int
-    requests_per_minute: int
 
 
 class ChatCompletionRequest:
