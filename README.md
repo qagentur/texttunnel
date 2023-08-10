@@ -27,4 +27,10 @@ Check the [examples](examples) directory for examples of how to use this package
 
 ## Development
 
-Run tests with `poetry run pytest -v`
+To get started with development, follow these steps:
+
+- clone the repository
+- install [poetry](https://python-poetry.org/docs/) if you don't have it yet
+- navigate to the project folder
+- run `poetry install` to install the dependencies
+- run the tests with `poetry run pytest -v`
