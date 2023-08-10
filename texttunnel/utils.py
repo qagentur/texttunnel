@@ -85,31 +85,31 @@ def format_texts_with_spaces(texts: List[str]) -> str:
 
 def binpack_texts_in_order(
     texts: List[str],
-    max_tokens_per_bin: int,
     formatter_function: Callable[[List[str]], str],
-    max_texts: Optional[int] = None,
+    max_tokens_per_bin: int,
+    max_texts_per_bin: Optional[int] = None,
     encoding_name: str = "cl100k_base",
     long_text_handling: str = "error",
 ) -> List[List[str]]:
     """
     Binpacks a list of texts into a list of lists of texts, such that each list of texts
     has a total number of tokens less than or equal to max_tokens_per_bin and each list of texts
-    has a number of texts less than or equal to max_texts.
+    has a number of texts less than or equal to max_texts_per_bin.
 
     The binpacking uses a naive greedy algorithm that maintains the order of the texts.
 
     Args:
         texts: The texts to binpack. Empty texts are accepted, counted as 0 tokens
-            each and count against max_texts.
+            each and count against max_texts_per_bin.
         formatter_function: A function that takes a list of texts and returns a single
             text. Defaults to None, which means that the texts are joined with spaces.
             This function is used to include the overhead of the formatter function in
             the binpacking. It is not used to format the output. Make sure to use
             the same formatter function when formatting the output for the model.
-        max_tokens_per_bin: The maximum number of tokens per list of texts. Leave some room for
-            relative to the model's context size to account for the tokens in the
+        max_tokens_per_bin: The maximum number of tokens per bin of formatted texts.
+            Leave some room for relative to the model's context size to account for the tokens in the
             system message, function call, and function return.
-        max_texts: The maximum number of texts per list of texts. Defaults to None, which
+        max_texts_per_bin: The maximum number of texts per list of texts. Defaults to None, which
             means that there is no limit on the number of texts per list of texts.
         encoding_name: The name of the encoding to use. Defaults to "cl100k_base".
         long_text_handling: How to handle texts that are longer than max_tokens_per_bin. Defaults
@@ -120,8 +120,8 @@ def binpack_texts_in_order(
         A list of lists of texts. The order of the texts is preserved.
     """
 
-    if not max_texts:
-        max_texts = len(texts)
+    if not max_texts_per_bin:
+        max_texts_per_bin = len(texts)
 
     encoding = tiktoken.get_encoding(encoding_name)
 
@@ -140,7 +140,7 @@ def binpack_texts_in_order(
 
         if (
             bin_tokens_with_new_text > max_tokens_per_bin
-            or current_bin_texts == max_texts
+            or current_bin_texts == max_texts_per_bin
         ):
             if len(current_bin) > 0:
                 # Start a new bin

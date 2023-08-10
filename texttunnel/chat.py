@@ -270,7 +270,7 @@ def build_binpacked_requests(
     text_bins = binpacking_function(
         texts=texts,
         max_tokens_per_bin=max_tokens_per_chat,
-        max_texts=max_texts_per_request,
+        max_texts_per_bin=max_texts_per_request,
         encoding_name=encoding_name,
         formatter_function=formatter_function,
         long_text_handling=long_text_handling,
