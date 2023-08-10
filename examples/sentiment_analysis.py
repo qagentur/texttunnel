@@ -3,6 +3,19 @@ import texttunnel.chat
 import texttunnel.models
 import texttunnel.processor
 
+# Look up information on models, pricing and rate limits:
+# https://platform.openai.com/docs/models/overview
+# https://openai.com/pricing
+# https://platform.openai.com/account/rate-limits
+GPT_3_5_TURBO = texttunnel.chat.Model(
+    name="gpt-3.5-turbo",
+    context_size=4096,
+    input_token_price_per_1k=0.002,
+    output_token_price_per_1k=0.004,
+    tokens_per_minute=90000,
+    requests_per_minute=3500,
+)
+
 # Texts that we'd like to know the sentiment of
 input_texts = [
     "I love sunshine",
@@ -38,7 +51,7 @@ for text in input_texts:
     )
 
     request = texttunnel.chat.ChatCompletionRequest(
-        model=texttunnel.models.GPT_3_5_TURBO,
+        model=GPT_3_5_TURBO,
         chat=messages,
         function=function,
     )
