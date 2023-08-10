@@ -115,6 +115,8 @@ def binpack_texts_in_order(
         long_text_handling: How to handle texts that are longer than max_tokens_per_bin. Defaults
             to "error", which means that an error is raised. Can also be set to
             "truncate", which means that the text is truncated to max_tokens_per_bin.
+            It is possible that more tokens are truncated than absolutely necessary
+            due to overhead of the formatter function caused by escaping characters.
 
     Returns:
         A list of lists of texts. The order of the texts is preserved.
@@ -123,80 +125,86 @@ def binpack_texts_in_order(
     if not max_texts_per_bin:
         max_texts_per_bin = len(texts)
 
+    if max_texts_per_bin < 1:
+        raise ValueError(
+            f"max_texts_per_bin must be at least 1, but got {max_texts_per_bin}"
+        )
+
     encoding = tiktoken.get_encoding(encoding_name)
 
     # Binpack the texts
     # Initialize the first bin
     bins = []
     current_bin = []
-    current_bin_texts = 0
 
     for i, text in enumerate(texts):
-        # Check if we need to start a new bin
+        if len(current_bin) == max_texts_per_bin:
+            # Start a new bin
+            bins.append(current_bin)
+            current_bin = []
+
         # Calculate how many tokens would be in the current bin if we added the text
         bin_tokens_with_new_text = len(
             encoding.encode(formatter_function(current_bin + [text]))
         )
 
-        if (
-            bin_tokens_with_new_text > max_tokens_per_bin
-            or current_bin_texts == max_texts_per_bin
-        ):
+        if bin_tokens_with_new_text > max_tokens_per_bin:  # doesn't fit
             if len(current_bin) > 0:
                 # Start a new bin
                 bins.append(current_bin)
                 current_bin = []
-                current_bin_texts = 0
 
-            # Check if the text is too long to fit in a bin
-            tokens_new_text_formatted = len(encoding.encode(formatter_function([text])))
-            tokens_new_text_raw = len(encoding.encode(text))
-            overhead = tokens_new_text_formatted - tokens_new_text_raw
+            else:  # current bin is already empty
+                # Calculate the overhead
+                tokens_text_raw = len(encoding.encode(text))
+                overhead = bin_tokens_with_new_text - tokens_text_raw
 
-            if overhead > max_tokens_per_bin:
-                raise ValueError(
-                    f"""
-                    The formatting function adds {overhead} overhead tokens,
-                    which exceeds the maximum number of tokens ({max_tokens_per_bin}) permitted.
-                    """
-                )
-
-            if tokens_new_text_formatted > max_tokens_per_bin:
-                # The formatted text is too long to fit in a bin
-                if long_text_handling == "error":
+                if overhead > max_tokens_per_bin:
                     raise ValueError(
                         f"""
-                        The text at index {i} has {bin_tokens_with_new_text} tokens, which
-                        is greater than the maximum number of tokens ({max_tokens_per_bin}).
-                        Note that a formatting function added {overhead} tokens to the text.
+                        The formatting function adds {overhead} overhead tokens,
+                        which exceeds the maximum number of tokens ({max_tokens_per_bin}) permitted.
                         """
                     )
 
-                elif long_text_handling == "truncate":
-                    text = truncate_text_by_tokens(
-                        text=text,
-                        max_tokens=max_tokens_per_bin - overhead,
-                        encoding=encoding,
-                    )
+                if bin_tokens_with_new_text > max_tokens_per_bin:
+                    # The formatted text is too long to fit in a bin
+                    if long_text_handling == "error":
+                        raise ValueError(
+                            f"""
+                            The text at index {i} has {bin_tokens_with_new_text} tokens, which
+                            is greater than the maximum number of tokens ({max_tokens_per_bin}).
+                            Note that a formatting function added {overhead} tokens to the text.
+                            """
+                        )
 
-                    assert (
-                        len(encoding.encode(formatter_function([text])))
-                        <= max_tokens_per_bin
-                    )
+                    elif long_text_handling == "truncate":
+                        # Truncate the text, accounting for overhead
+                        # It's possible that more is truncated than necessary
+                        # in case the overhead was caused by escaping characters
+                        # in the truncated part of the text
+                        text = truncate_text_by_tokens(
+                            text=text,
+                            max_tokens=max_tokens_per_bin - overhead,
+                            encoding=encoding,
+                        )
 
-                else:
-                    raise ValueError(
-                        f"""
-                        Invalid value for long_text_handling: {long_text_handling}.
-                        Must be one of "error" or "truncate".
-                        """
-                    )
+                        assert (
+                            len(encoding.encode(formatter_function([text])))
+                            <= max_tokens_per_bin
+                        )
+
+                    else:
+                        raise ValueError(
+                            f"""
+                            Invalid value for long_text_handling: {long_text_handling}.
+                            Must be one of "error" or "truncate".
+                            """
+                        )
 
         # Add to the current bin
         current_bin.append(text)
-        current_bin_texts += 1
 
-    # Add the last bin if it's not empty
     if current_bin:
         bins.append(current_bin)
 

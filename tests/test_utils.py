@@ -15,6 +15,30 @@ def texts_fixture():
 
 
 @pytest.fixture
+def texts_fixture_long():
+    n_texts = 100
+    min_length = 10
+    max_length = 1000
+
+    text_lengths = range(min_length, max_length, 10)  # 100 variations of text length
+
+    j = 0
+
+    # Cycle through texts lengths to create a list of texts
+    texts = []
+    for _ in range(n_texts):
+        text_length = text_lengths[j]
+        text = " ".join(["hello"] * text_length)  # Nirvana lyrics generator
+        texts.append(text)
+        if j < len(text_lengths) - 1:
+            j += 1
+        else:
+            j = 0
+
+    return texts
+
+
+@pytest.fixture
 def encoding_fixture():
     return tiktoken.get_encoding("cl100k_base")
 
@@ -55,6 +79,22 @@ def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
         max_tokens_per_bin=max_tokens_per_bin,
         formatter_function=utils.format_texts_as_json,
         long_text_handling="truncate",
+    )
+
+    tokens_in_bins = [
+        len(encoding_fixture.encode(utils.format_texts_as_json(text_bin)))
+        for text_bin in text_bins
+    ]
+    assert all([tokens <= max_tokens_per_bin for tokens in tokens_in_bins])
+
+
+def test_binpack_texts_in_order_long_texts(texts_fixture_long, encoding_fixture):
+    max_tokens_per_bin = 1000
+    text_bins = utils.binpack_texts_in_order(
+        texts=texts_fixture_long,
+        max_tokens_per_bin=max_tokens_per_bin,
+        formatter_function=utils.format_texts_as_json,
+        long_text_handling="error",
     )
 
     tokens_in_bins = [
