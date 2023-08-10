@@ -50,7 +50,8 @@ def format_texts_as_json(texts: List[str]) -> str:
     helps the model distinguish between different texts, at the cost of
     increasing the number of tokens used.
 
-    The token overhead for a single text is 12 tokens.
+    The token overhead for a single text that doesn't require escaping characters
+    is 12 tokens. Escaping characters like quotes increases the overhead.
 
     The format is a JSON list of dictionaries, where each dictionary has an
     "id" key and a "text" key. The "id" key is an integer, and the "text" key
