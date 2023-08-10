@@ -19,6 +19,12 @@ Planned features:
 
 ## Installation
 
+## Usage
+
+Create an account on [OpenAI](https://openai.com) and get an API key. Set it as an environment variable called `OPENAI_API_KEY`.
+
+Check the [examples](examples) directory for examples of how to use this package.
+
 ## Development
 
 To get started with development, follow these steps:

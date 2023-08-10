@@ -108,6 +108,8 @@ class ChatCompletionRequest:
         chat: The chat to which the assistant should respond with a function call.
         model: The name of the OpenAI ChatCompletion model to use for completion.
         function: The function definition to use for the assistant's response.
+            Must be a dictionary that describes a valid JSON schema.
+            See https://platform.openai.com/docs/guides/gpt/function-calling
     """
 
     def __init__(
@@ -138,3 +140,13 @@ class ChatCompletionRequest:
         function_tokens = count_tokens(json.dumps(self.function_call))
 
         return chat_tokens + function_tokens
+
+    def estimate_input_cost_usd(self) -> float:
+        """
+        Estimates the cost of the request in USD.
+        """
+        num_input_tokens = self.count_tokens()
+
+        input_cost_usd = num_input_tokens * self.model.input_token_price_per_1k / 1000
+
+        return input_cost_usd
