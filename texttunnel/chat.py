@@ -1,11 +1,54 @@
 from typing import Any, Callable, Dict, List, Optional
+from dataclasses import dataclass
+from jsonschema import Draft7Validator, exceptions
+import tiktoken
 import json
 
 from texttunnel.models import Model
 from texttunnel import utils
 
-
 FunctionDef = Dict[str, str]
+
+
+def is_valid_function_def(function: FunctionDef) -> bool:
+    """
+    Checks if a function definition is valid for use in a ChatCompletionRequest.
+    Note that the parameter properties are not validated to allow for custom properties.
+
+    Args:
+        function: The function definition to validate.
+    """
+    base_schema = {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "parameters": {
+            "type": "object",
+            "properties": {"type": "object"},
+        },
+        "required": ["name", "parameters"],
+    }
+
+    try:
+        Draft7Validator(base_schema).validate(function)
+    except exceptions.ValidationError:
+        print(f"Validation error: {exceptions.ValidationError}")
+        return False
+
+    return True
+
+
+def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
+    """
+    Returns the number of tokens in a string.
+
+    Args:
+        text: The text to count tokens in.
+        encoding: The name of the encoding to use. Defaults to "cl100k_base".
+    """
+
+    encoder = tiktoken.get_encoding(encoding)
+    num_tokens = len(encoder.encode(text))
+    return num_tokens
 
 
 class ChatMessage:
@@ -89,6 +132,32 @@ class Chat:
         return sum(message.count_tokens() for message in self.messages)
 
 
+@dataclass
+class Model:
+    """
+    Information about an OpenAI ChatCompletion model.
+    Check prices here: https://openai.com/pricing
+
+    Note that rate limits differ between OpenAI accounts.
+    Check them here: https://platform.openai.com/account/rate-limits
+
+    Args:
+        name: The name of the model, e.g. "gpt-3.5-turbo".
+        context_size: The maximum number of tokens that can be passed to the model.
+        input_token_price_per_1k: The price in USD per 1000 tokens for input.
+        output_token_price_per_1k: The price in USD per 1000 tokens for output.
+        tokens_per_minute: The maximum number of tokens that can be processed per minute.
+        requests_per_minute: The maximum number of requests that can be made per minute.
+    """
+
+    name: str
+    context_size: int
+    input_token_price_per_1k: float
+    output_token_price_per_1k: float
+    tokens_per_minute: int
+    requests_per_minute: int
+
+
 class ChatCompletionRequest:
     """
     Defines a request for a chat completion.
@@ -113,6 +182,9 @@ class ChatCompletionRequest:
         self.chat = chat
         self.model = model
 
+        if not is_valid_function_def(function):
+            raise ValueError("Invalid function definition.")
+
         self.function = function
 
         # Force the model to use a function call
@@ -120,6 +192,13 @@ class ChatCompletionRequest:
         self.function_call = {"name": function["name"]}
 
         self.model_params = model_params or {}
+
+        # Check that the inputs fit into the context size
+        num_input_tokens = self.count_tokens()
+        if num_input_tokens > self.model.context_size:
+            raise ValueError(
+                f"Input tokens ({num_input_tokens}) exceed the context size ({self.model.context_size})."
+            )
 
     def to_dict(self) -> Dict[str, Any]:
         """
