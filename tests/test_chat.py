@@ -104,7 +104,7 @@ def test_build_binpacked_requests(
         model=model_fixture,
         function=function_fixture,
         texts=texts_fixture,
-        max_texts_per_chat=2,
+        max_texts_per_request=2,
     )
 
     assert len(requests) == 2

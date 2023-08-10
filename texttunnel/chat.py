@@ -243,7 +243,7 @@ def build_binpacked_requests(
     system_message: str,
     texts: List[str],
     max_tokens_per_request: Optional[int] = None,
-    max_texts_per_chat: Optional[int] = None,
+    max_texts_per_request: Optional[int] = None,
     binpacking_function: Callable = utils.binpack_texts_in_order,
     formatter_function: Callable = utils.format_texts_as_json,
     encoding_name: str = "cl100k_base",
@@ -264,7 +264,7 @@ def build_binpacked_requests(
         texts: A list of texts to binpack into chats.
         max_tokens_per_chat: The maximum number of tokens allowed per chat. Defaults
             to 90% of the model's context size.
-        max_texts_per_chat: The maximum number of texts allowed per chat. Defaults
+        max_texts_per_request: The maximum number of texts allowed per chat. Defaults
             to None, which means there is no limit.
         binpacking_function: The function to use for binpacking.
             Must take a list of texts and return a list of lists of texts.
@@ -297,7 +297,7 @@ def build_binpacked_requests(
     text_bins = binpacking_function(
         texts=texts,
         max_tokens=max_tokens_per_chat,
-        max_texts=max_texts_per_chat,
+        max_texts=max_texts_per_request,
         encoding_name=encoding_name,
         formatter_function=formatter_function,
         long_text_handling=long_text_handling,
