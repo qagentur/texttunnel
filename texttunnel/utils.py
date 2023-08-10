@@ -137,7 +137,10 @@ def binpack_texts_in_order(
             encoding.encode(formatter_function(current_bin + [text]))
         )
 
-        if bin_tokens_with_new_text > max_tokens_per_bin or current_bin_texts == max_texts:
+        if (
+            bin_tokens_with_new_text > max_tokens_per_bin
+            or current_bin_texts == max_texts
+        ):
             if len(current_bin) > 0:
                 # Start a new bin
                 bins.append(current_bin)
@@ -176,7 +179,8 @@ def binpack_texts_in_order(
                     )
 
                     assert (
-                        len(encoding.encode(formatter_function([text]))) <= max_tokens_per_bin
+                        len(encoding.encode(formatter_function([text])))
+                        <= max_tokens_per_bin
                     )
 
                 else:
