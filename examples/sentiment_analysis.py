@@ -1,13 +1,16 @@
 # %%
-import texttunnel.chat
-import texttunnel.models
-import texttunnel.processor
+from texttunnel import chat, models, processor
+from diskcache import Cache
+
+# Create a cache to store the results of the requests
+# When this script is run again, the results will be loaded from the cache
+cache = Cache("mycache")
 
 # Look up information on models, pricing and rate limits:
 # https://platform.openai.com/docs/models/overview
 # https://openai.com/pricing
 # https://platform.openai.com/account/rate-limits
-GPT_3_5_TURBO = texttunnel.chat.Model(
+GPT_3_5_TURBO = models.Model(
     name="gpt-3.5-turbo",
     context_size=4096,
     input_token_price_per_1k=0.002,
@@ -29,34 +32,33 @@ function = {
     "parameters": {
         "type": "object",
         "properties": {
-            "sentiment": {"type": "string", "enum": ["positive", "negative"]}
+            "answers": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "id": {"type": "string"},
+                        "sentiment": {"type": "string"},
+                    },
+                    "required": ["id", "sentiment"],
+                },
+            },
         },
+        "required": ["answers"],
     },
 }
 
-requests = []
+system_message = "You are a sentiment analysis expert. Analyze the following statements as positive or negative."
 
-for text in input_texts:
-    messages = texttunnel.chat.Chat(
-        [
-            texttunnel.chat.ChatMessage(
-                role="system",
-                content="You are a sentiment analysis expert.",
-            ),
-            texttunnel.chat.ChatMessage(
-                role="user",
-                content=f"Classify the following statement as positive or negative: {text}",
-            ),
-        ]
-    )
-
-    request = texttunnel.chat.ChatCompletionRequest(
-        model=GPT_3_5_TURBO,
-        chat=messages,
-        function=function,
-    )
-
-    requests.append(request)
+requests = chat.build_binpacked_requests(
+    texts=input_texts,
+    function=function,
+    model=GPT_3_5_TURBO,
+    system_message=system_message,
+    model_params={
+        "temperature": 0.0,
+    },  # no randomness in the model's output
+)
 
 # %%
 # Estimate the cost of the requests
@@ -65,17 +67,18 @@ print(f"Estimated cost of input tokens: ${cost_usd:.4f}")
 
 # %%
 # Requires that the OPENAI_API_KEY environment variable is set.
-responses = texttunnel.processor.process_api_requests(
+responses = processor.process_api_requests(
     requests=requests,
-    save_filepath="output.jsonl",
-    keep_file=False,
-    logging_level=50,  # only log errors
+    logging_level=20,  # log INFO and above
+    cache=cache,  # use diskcache to cache API responses
 )
 
-# %%
-results = texttunnel.processor.parse_responses(responses=responses)
+cache.close()
 
-for text, sentiment in zip(input_texts, results):
-    print(f"{text}: {sentiment}")
+# %%
+results = processor.parse_responses(responses=responses)
+
+for text, answer in zip(input_texts, results[0]["answers"]):
+    print(f"{text}: {answer['sentiment']}")
 
 # %%

@@ -24,21 +24,27 @@
 # SOFTWARE.
 
 # imports
-import aiohttp  # for making API calls concurrently
 import asyncio  # for running API calls concurrently
-from hashlib import sha256  # for hashing API inputs
 import json  # for saving results to a jsonl file
 import logging  # for logging rate limit warnings and other messages
 import os  # for reading API key from environment variable
 import sys  # for checking notebook vs. script
-import tiktoken  # for counting tokens
-from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
-from pathlib import Path  # for saving results to a file
+import tempfile  # for creating a temporary file to save results
 import time  # for sleeping after rate limit is hit
+
 from dataclasses import (
     dataclass,
     field,
-)  # for storing API inputs, outputs, and metadata
+)
+from hashlib import sha256  # for hashing API inputs
+from pathlib import Path  # for saving results to a file
+from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
+
+import aiohttp
+
+# for storing API inputs, outputs, and metadata
+import diskcache as dc  # for caching API responses
+import tiktoken  # for counting tokens
 
 from texttunnel.chat import ChatCompletionRequest
 
@@ -50,15 +56,51 @@ def hash_dict(d: dict) -> str:
     return sha256(json.dumps(d).encode("utf-8")).hexdigest()
 
 
+def prepare_output_filepath(
+    output_filepath: Optional[Union[str, Path]], keep_file: bool
+) -> Path:
+    """
+    Validates the output_filepath and returns a Path object. Uses a temporary file
+    if output_filepath is None.
+
+    Args:
+        output_filepath: The path to save the results to. If None, a temporary file
+            will be used.
+        keep_file: Whether to keep the file after the function returns. If True,
+            output_filepath must not be None.
+
+    Returns:
+        A Path object representing the output_filepath.
+    """
+    using_tempfile = False
+
+    if output_filepath is None:
+        output_filepath = tempfile.NamedTemporaryFile(delete=False).name
+        using_tempfile = True
+        if keep_file:
+            raise ValueError(
+                "keep_file=True is not compatible with output_filepath=None"
+            )
+
+    if not isinstance(output_filepath, Path):
+        output_filepath = Path(output_filepath)
+
+    if output_filepath.exists() and not using_tempfile:
+        raise ValueError(f"File already exists: {output_filepath}")
+
+    return output_filepath
+
+
 def process_api_requests(
     requests: List[ChatCompletionRequest],
-    save_filepath: Union[str, Path],
-    keep_file: bool = True,
+    output_filepath: Optional[Union[str, Path]] = None,
+    keep_file: bool = False,
     logging_level: int = 20,
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     token_encoding_name: str = "cl100k_base",
     api_key: Optional[str] = None,
+    cache: Optional[dc.core.Cache] = None,
 ) -> List[Dict[str, Any]]:
     """
 
@@ -85,15 +127,18 @@ def process_api_requests(
 
     Args:
         requests: List[ChatCompletionRequest]
-            the requests to process, see ChatCompletionRequest class for details
-        save_filepath: str, optional
-            path to the file where the results will be saved
+            The requests to process, see ChatCompletionRequest class for details
+        output_filepath: str, optional
+            Path to the file where the results will be saved
             file will be a jsonl file, where each line is an array with the original
             request plus the API response e.g.,
             [{"model": "gpt-4", "messages": "..."}, {...}]
-            if omitted, results will be saved to {requests_filename}_results.jsonl
+            if omitted, the results will be saved to a temporary file.
         keep_file: bool, optional
-            Whether to keep the results file after the script finishes.
+            Whether to keep the results file after the script finishes, in addition
+            to the results being returned by the function.
+            Defaults to False, so the file will be deleted after the script finishes.
+            Setting this to True is not compatible with output_filepath=None.
         logging_level: int, optional
             level of logging to use; higher numbers will log fewer messages
             40 = ERROR; will log only when requests fail after all retries
@@ -102,19 +147,23 @@ def process_api_requests(
             10 = DEBUG; will log various things as the loop runs to see when they occur
             if omitted, will default to 20 (INFO).
         max_attempts: int, optional
-            number of times to retry a failed request before giving up
+            Number of times to retry a failed request before giving up
             if omitted, will default to 5
         rate_limit_headroom_factor: float, optional
-            factor to multiply the rate limit by to guarantee that the script
+            Factor to multiply the rate limit by to guarantee that the script
             stays under the limit if omitted, will default to 0.75
             (75% of the rate limit)
         token_encoding_name: str, optional
-            name of the token encoding used, as defined in the `tiktoken` package
+            Name of the token encoding used, as defined in the `tiktoken` package
             if omitted, will default to "cl100k_base" (used by GPT-3.5 and 4)
         api_key: str, optional
             API key to use
             if omitted, the function will attempt to read it from an environment
             variable {os.getenv("OPENAI_API_KEY")}
+        cache: diskcache.Cache, optional
+            If provided, API responses will be served from the cache if available.
+            New responses will be saved to the cache.
+            Create a cache object with `diskcache.Cache("path/to/cache")`
 
     Returns:
         List[Dict[str, Any]]: list where each element consists of two dictionaries:
@@ -137,12 +186,10 @@ def process_api_requests(
 
         nest_asyncio.apply()
 
-    if not isinstance(save_filepath, Path):
-        save_filepath = Path(save_filepath)
+    # Handle save file
+    output_filepath = prepare_output_filepath(output_filepath, keep_file)
 
-    if save_filepath.exists():
-        raise ValueError(f"File already exists: {save_filepath}")
-
+    # Remember the order of the requests so that we can sort the results
     request_order = {
         hash_dict(request.to_dict()): i for i, request in enumerate(requests)
     }
@@ -150,17 +197,18 @@ def process_api_requests(
     asyncio.run(
         aprocess_api_requests(
             requests,
-            save_filepath,
+            output_filepath,
             logging_level,
             max_attempts,
             rate_limit_headroom_factor,
             token_encoding_name,
             api_key,
+            cache,
         )
     )
 
     # Read results from file
-    with open(save_filepath, "r") as f:
+    with open(output_filepath, "r") as f:
         responses = [json.loads(line) for line in f]
 
     # Sort results in order of input requests
@@ -172,10 +220,10 @@ def process_api_requests(
 
     # Delete file if keep_file is False
     if not keep_file:
-        save_filepath.unlink()
+        output_filepath.unlink()
     else:
         # Overwrite file with sorted results
-        with open(save_filepath, "w") as f:
+        with open(output_filepath, "w") as f:
             for response in responses:
                 f.write(json.dumps(response) + "\n")
 
@@ -184,12 +232,13 @@ def process_api_requests(
 
 async def aprocess_api_requests(
     requests: List[ChatCompletionRequest],
-    save_filepath: Path,
+    output_filepath: Path,
     logging_level: int,
     max_attempts: int,
     rate_limit_headroom_factor: float,
     token_encoding_name: str,
     api_key: Optional[str] = None,
+    cache: Optional[dc.Cache] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
     # constants
@@ -316,8 +365,9 @@ async def aprocess_api_requests(
                         request_url=request_url,
                         request_header=request_header,
                         retry_queue=queue_of_requests_to_retry,
-                        save_filepath=save_filepath,
+                        output_filepath=output_filepath,
                         status_tracker=status_tracker,
+                        cache=cache,
                     )
                 )
                 next_request = None  # reset next_request to empty
@@ -344,10 +394,10 @@ async def aprocess_api_requests(
             )
 
     # after finishing, log final status
-    logging.info(f"""Parallel processing complete. Results saved to {save_filepath}""")
+    logging.info("Parallel processing complete.")
     if status_tracker.num_tasks_failed > 0:
         logging.warning(
-            f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed. Errors logged to {save_filepath}."
+            f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed. Errors logged to {output_filepath}."
         )
     if status_tracker.num_rate_limit_errors > 0:
         logging.warning(
@@ -387,37 +437,52 @@ class APIRequest:
         request_url: str,
         request_header: dict,
         retry_queue: asyncio.Queue,
-        save_filepath: Path,
+        output_filepath: Path,
         status_tracker: StatusTracker,
+        cache: Optional[dc.core.Cache] = None,
     ):
         """Calls the OpenAI API and saves results."""
-        logging.info(f"Starting request #{self.task_id}")
-        error = None
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    url=request_url, headers=request_header, json=self.request_json
-                ) as response:
-                    response = await response.json()
-            if "error" in response:
-                logging.warning(
-                    f"Request {self.task_id} failed with error {response['error']}"
-                )
-                status_tracker.num_api_errors += 1
-                error = response
-                if "Rate limit" in response["error"].get("message", ""):
-                    status_tracker.time_of_last_rate_limit_error = int(time.time())
-                    status_tracker.num_rate_limit_errors += 1
-                    status_tracker.num_api_errors -= (
-                        1  # rate limit errors are counted separately
-                    )
 
-        except (
-            Exception
-        ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
-            logging.warning(f"Request {self.task_id} failed with Exception {e}")
-            status_tracker.num_other_errors += 1
-            error = e
+        # Check if the request is cached
+        cache_hit = False
+
+        if cache is not None:
+            cache_key = hash_dict(self.request_json)
+
+            if cache_key in cache:
+                logging.info(f"Request #{self.task_id} is cached")
+                response = cache[cache_key]
+                cache_hit = True
+
+        error = None
+
+        if not cache_hit:
+            logging.info(f"Starting request #{self.task_id}")
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(
+                        url=request_url, headers=request_header, json=self.request_json
+                    ) as response:
+                        response = await response.json()
+                if "error" in response:
+                    logging.warning(
+                        f"Request {self.task_id} failed with error {response['error']}"
+                    )
+                    status_tracker.num_api_errors += 1
+                    error = response
+                    if "Rate limit" in response["error"].get("message", ""):
+                        status_tracker.time_of_last_rate_limit_error = int(time.time())
+                        status_tracker.num_rate_limit_errors += 1
+                        status_tracker.num_api_errors -= (
+                            1  # rate limit errors are counted separately
+                        )
+
+            except (
+                Exception
+            ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
+                logging.warning(f"Request {self.task_id} failed with Exception {e}")
+                status_tracker.num_other_errors += 1
+                error = e
 
         if error:
             self.result.append(error)
@@ -432,7 +497,7 @@ class APIRequest:
                     if self.metadata
                     else [self.request_json, [str(e) for e in self.result]]
                 )
-                append_to_jsonl(data, save_filepath)
+                append_to_jsonl(data, output_filepath)
                 status_tracker.num_tasks_in_progress -= 1
                 status_tracker.num_tasks_failed += 1
         else:
@@ -441,10 +506,14 @@ class APIRequest:
                 if self.metadata
                 else [self.request_json, response]
             )
-            append_to_jsonl(data, save_filepath)
+            append_to_jsonl(data, output_filepath)
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
-            logging.debug(f"Request {self.task_id} saved to {save_filepath}")
+            logging.debug(f"Request {self.task_id} saved to {output_filepath}")
+
+            if cache is not None and not cache_hit:
+                cache[cache_key] = response
+                logging.debug(f"Request {self.task_id} cached")
 
 
 # functions
@@ -510,14 +579,29 @@ def parse_response(response: List[Dict]) -> Dict[str, Any]:
     Extract the function call arguments from a response.
 
     Args:
-        response: The response to parse.
+        response: The response to parse. It should be a list of length 2, where the
+            first element is the request and the second element is the response.
 
     Returns:
         The function call arguments.
     """
-    return json.loads(
-        response[1]["choices"][0]["message"]["function_call"]["arguments"]
-    )
+    if len(response) != 2:
+        raise ValueError(
+            f"""
+            Response {response} is incorrectly formatted.
+            It should be a list of length 2, where the first element is the request
+            and the second element is the response.
+            """
+        )
+
+    try:
+        return json.loads(
+            response[1]["choices"][0]["message"]["function_call"]["arguments"]
+        )
+    except KeyError as e:
+        raise ValueError(f"Response {response} is incorrectly formatted. Error: {e}")
+    except json.decoder.JSONDecodeError as e:
+        raise ValueError(f"Response {response} is not valid JSON. Error: {e}")
 
 
 def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
@@ -530,4 +614,12 @@ def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
     Returns:
         List where each element is the function call arguments for a response.
     """
-    return [parse_response(r) for r in responses]
+
+    parsed = []
+    for i, response in enumerate(responses):
+        try:
+            parsed.append(parse_response(response))
+        except ValueError as e:
+            raise ValueError(f"Response {i} is incorrectly formatted. Error: {e}")
+
+    return parsed

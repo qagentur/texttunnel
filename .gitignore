@@ -1,3 +1,11 @@
+# Cache files from diskcache
+*.db
+*.db-shm
+*.db-wal
+
+# macOS
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
