@@ -505,7 +505,7 @@ class APIRequest:
                 append_to_jsonl(data, output_filepath)
                 status_tracker.num_tasks_in_progress -= 1
                 status_tracker.num_tasks_failed += 1
-        else: # success
+        else:  # success
             data = (
                 [self.request_json, response, self.metadata]
                 if self.metadata
