@@ -75,7 +75,7 @@ def test_binpack_texts_in_order_overhead_too_long_error(texts_fixture):
         )
 
 
-def test_binpack_texts_in_order_single_overlong_text(texts_fixture_long):
+def test_binpack_texts_in_order_text_too_long_error(texts_fixture_long):
     max_tokens_per_bin = 1000
     with pytest.raises(ValueError):  # Doesn't fit due to overhead
         utils.binpack_texts_in_order(
@@ -103,7 +103,7 @@ def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
 
 
 def test_binpack_texts_in_order_long_texts(texts_fixture_long, encoding_fixture):
-    max_tokens_per_bin = 1000
+    max_tokens_per_bin = 1013 # exactly fits the longest text including overhead
     text_bins = utils.binpack_texts_in_order(
         texts=texts_fixture_long,
         max_tokens_per_bin=max_tokens_per_bin,
@@ -129,7 +129,7 @@ def test_format_texts_as_json(texts_fixture):
     assert act == exp
 
 
-def truncate_text_by_tokens(encoding_fixture):
+def test_truncate_text_by_tokens(encoding_fixture):
     text = "Hello, world!"
     truncated_text = utils.truncate_text_by_tokens(
         text, max_tokens=2, encoding=encoding_fixture

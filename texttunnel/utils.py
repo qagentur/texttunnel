@@ -182,7 +182,7 @@ def binpack_texts_in_order(
                     if long_text_handling == "error":
                         raise ValueError(
                             f"""
-                            The text at index {i} has {bin_tokens_with_new_text} tokens, which
+                            The text at index {i} has {tokens_text_with_formatting} tokens, which
                             is greater than the maximum number of tokens ({max_tokens_per_bin}).
                             Note that a formatting function added {overhead} tokens to the text.
                             """
