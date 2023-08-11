@@ -71,7 +71,6 @@ responses = processor.process_api_requests(
     requests=requests,
     logging_level=20,  # log INFO and above
     cache=cache,  # use diskcache to cache API responses
-    api_key="abc",
 )
 
 cache.close()
