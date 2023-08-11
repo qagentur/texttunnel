@@ -76,7 +76,10 @@ def format_texts_as_json(texts: List[str]) -> str:
         for i, text in enumerate(texts)
     ]
 
-    return json.dumps(text_dicts)
+    # json.dumps escapes characters like quotes, which increases the token overhead
+    # OpenAI models understand non-ascii characters, so we can use ensure_ascii=False
+    # to avoid escaping characters.
+    return json.dumps(text_dicts, ensure_ascii=False)
 
 
 def format_texts_with_spaces(texts: List[str]) -> str:
