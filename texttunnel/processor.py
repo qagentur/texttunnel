@@ -579,14 +579,29 @@ def parse_response(response: List[Dict]) -> Dict[str, Any]:
     Extract the function call arguments from a response.
 
     Args:
-        response: The response to parse.
+        response: The response to parse. It should be a list of length 2, where the
+            first element is the request and the second element is the response.
 
     Returns:
         The function call arguments.
     """
-    return json.loads(
-        response[1]["choices"][0]["message"]["function_call"]["arguments"]
-    )
+    if len(response) != 2:
+        raise ValueError(
+            f"""
+            Response {response} is incorrectly formatted.
+            It should be a list of length 2, where the first element is the request
+            and the second element is the response.
+            """
+        )
+
+    try:
+        return json.loads(
+            response[1]["choices"][0]["message"]["function_call"]["arguments"]
+        )
+    except KeyError as e:
+        raise ValueError(f"Response {response} is incorrectly formatted. Error: {e}")
+    except json.decoder.JSONDecodeError as e:
+        raise ValueError(f"Response {response} is not valid JSON. Error: {e}")
 
 
 def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
@@ -599,4 +614,12 @@ def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
     Returns:
         List where each element is the function call arguments for a response.
     """
-    return [parse_response(r) for r in responses]
+
+    parsed = []
+    for i, response in enumerate(responses):
+        try:
+            parsed.append(parse_response(response))
+        except ValueError as e:
+            raise ValueError(f"Response {i} is incorrectly formatted. Error: {e}")
+
+    return parsed
