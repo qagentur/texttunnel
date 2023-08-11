@@ -1,7 +1,6 @@
 import json
 from typing import Any, Callable, Dict, List, Optional
 
-import tiktoken
 from jsonschema import Draft7Validator, exceptions
 
 from texttunnel import utils
@@ -35,20 +34,6 @@ def is_valid_function_def(function: FunctionDef) -> bool:
         return False
 
     return True
-
-
-def count_tokens(text: str, encoding: str = "cl100k_base") -> int:
-    """
-    Returns the number of tokens in a string.
-
-    Args:
-        text: The text to count tokens in.
-        encoding: The name of the encoding to use. Defaults to "cl100k_base".
-    """
-
-    encoder = tiktoken.get_encoding(encoding)
-    num_tokens = len(encoder.encode(text))
-    return num_tokens
 
 
 class ChatMessage:
