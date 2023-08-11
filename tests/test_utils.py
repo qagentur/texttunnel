@@ -103,7 +103,7 @@ def test_binpack_texts_in_order_truncation(texts_fixture, encoding_fixture):
 
 
 def test_binpack_texts_in_order_long_texts(texts_fixture_long, encoding_fixture):
-    max_tokens_per_bin = 1013 # exactly fits the longest text including overhead
+    max_tokens_per_bin = 1013  # exactly fits the longest text including overhead
     text_bins = utils.binpack_texts_in_order(
         texts=texts_fixture_long,
         max_tokens_per_bin=max_tokens_per_bin,

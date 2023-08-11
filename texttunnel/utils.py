@@ -161,10 +161,11 @@ def binpack_texts_in_order(
                 current_bin = []
 
             # Check if the text fits in a bin by itself
-            tokens_text_with_formatting = len(encoding.encode(formatter_function([text])))
+            tokens_text_with_formatting = len(
+                encoding.encode(formatter_function([text]))
+            )
 
-            if tokens_text_with_formatting > max_tokens_per_bin: # doesn't fit
-
+            if tokens_text_with_formatting > max_tokens_per_bin:  # doesn't fit
                 # Calculate the overhead of the formatter function
                 tokens_text_raw = len(encoding.encode(text))
                 overhead = tokens_text_with_formatting - tokens_text_raw
