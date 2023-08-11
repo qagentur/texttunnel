@@ -122,6 +122,20 @@ def test_binpack_texts_in_order_long_texts(texts_fixture_long, encoding_fixture)
     assert all([tokens <= max_tokens_per_bin for tokens in tokens_in_bins])
 
 
+def test_binpack_texts_in_order_max_texts_per_bin(texts_fixture_long):
+    max_tokens_per_bin = 10000  # very large
+    max_texts_per_bin = 3
+
+    text_bins = utils.binpack_texts_in_order(
+        texts=texts_fixture_long,
+        max_tokens_per_bin=max_tokens_per_bin,
+        max_texts_per_bin=max_texts_per_bin,
+        formatter_function=utils.format_texts_as_json,
+    )
+
+    assert max([len(text_bin) for text_bin in text_bins]) == max_texts_per_bin
+
+
 def test_format_texts_as_json(texts_fixture):
     act = utils.format_texts_as_json(texts_fixture[:2])
     exp = '[{"id": 0, "text": "The first text."}, {"id": 1, "text": ""}]'
