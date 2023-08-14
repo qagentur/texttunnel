@@ -160,6 +160,7 @@ def process_api_requests(
             API key to use
             if omitted, the function will attempt to read it from an environment
             variable {os.getenv("OPENAI_API_KEY")}
+            If all requests are cached, the API key is not required.
         cache: diskcache.Cache, optional
             If provided, API responses will be served from the cache if available.
             New responses will be saved to the cache.
@@ -196,14 +197,14 @@ def process_api_requests(
 
     asyncio.run(
         aprocess_api_requests(
-            requests,
-            output_filepath,
-            logging_level,
-            max_attempts,
-            rate_limit_headroom_factor,
-            token_encoding_name,
-            api_key,
-            cache,
+            requests=requests,
+            output_filepath=output_filepath,
+            logging_level=logging_level,
+            max_attempts=max_attempts,
+            rate_limit_headroom_factor=rate_limit_headroom_factor,
+            token_encoding_name=token_encoding_name,
+            api_key=api_key,
+            cache=cache,
         )
     )
 
@@ -243,11 +244,40 @@ async def aprocess_api_requests(
     cache: Optional[dc.Cache] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
-    # constants
-    seconds_to_pause_after_rate_limit_error = 15
-    seconds_to_sleep_each_loop = (
-        0.001  # 1 ms limits max throughput to 1,000 requests per second
-    )
+
+    # initialize logging
+    logging.basicConfig(level=logging_level)
+    logging.debug(f"Logging initialized at level {logging_level}")
+
+    # Check if requests can be served from the cache
+    # Build a queue of requests that need to be sent to the API
+    if cache is not None:
+        logging.debug("Checking cache for requests.")
+        requests_queue = []
+        for request in requests:
+            request_json = request.to_dict()
+            cache_key = hash_dict(request_json)
+
+            if cache_key in cache:
+                response = cache[cache_key]
+
+                data = [request_json, response]
+                append_to_jsonl(data, output_filepath)
+            else:
+                requests_queue.append(request_json)
+
+        request_cache_hits = len(requests) - len(requests_queue)
+        logging.info(
+            f"Found {request_cache_hits} out of {len(requests)} requests in cache."
+        )
+    else:
+        logging.debug("No cache provided.")
+        requests_queue = [request.to_dict() for request in requests.copy()]
+
+    if len(requests_queue) == 0:
+        return
+
+    logging.debug("Cache check complete.")
 
     # Check that all requests use the same model. Otherwise, we can't set
     # a single rate limit for all requests.
@@ -256,6 +286,12 @@ async def aprocess_api_requests(
 
     if rate_limit_headroom_factor < 0.01 or rate_limit_headroom_factor > 1:
         raise ValueError("rate_limit_headroom_factor must be between 0.01 and 1.")
+
+    # initialize API constants
+    seconds_to_pause_after_rate_limit_error = 15
+    seconds_to_sleep_each_loop = (
+        0.001  # 1 ms limits max throughput to 1,000 requests per second
+    )
 
     if api_key is None:
         try:
@@ -266,11 +302,6 @@ async def aprocess_api_requests(
                 "api_key must be provided or set as an environment variable OPENAI_API_KEY."
             )
 
-    # initialize logging
-    logging.basicConfig(level=logging_level)
-    logging.debug(f"Logging initialized at level {logging_level}")
-
-    # initialize API constants
     request_url = "https://api.openai.com/v1/chat/completions"
     request_header = {"Authorization": f"Bearer {api_key}"}
 
@@ -299,10 +330,11 @@ async def aprocess_api_requests(
     # initialize flags
     logging.debug("Initialization complete.")
 
-    # initialize requests reading
-    requests_queue = requests.copy()
-    logging.debug("Requests loaded. Entering main loop.")
+    logging.info(
+        f"Beginning main requests loop. {len(requests_queue)} requests to make."
+    )
 
+    # Main loop that runs until all tasks are finished
     while True:
         # get next request (if one is not already waiting for capacity)
         # check if there are requests that need to be retried
@@ -314,18 +346,16 @@ async def aprocess_api_requests(
                 )
             # check if there are requests that haven't been tried yet
             if len(requests_queue) > 0:
-                next_request_input = requests_queue.pop(0)
+                next_request_json = requests_queue.pop(0)
 
                 # get new request
-                request_json = next_request_input.to_dict()
                 next_request = APIRequest(
                     task_id=next(task_id_generator),
-                    request_json=request_json,
+                    request_json=next_request_json,
                     token_consumption=num_tokens_consumed_from_request(
-                        request_json, token_encoding_name
+                        next_request_json, token_encoding_name
                     ),
                     attempts_left=max_attempts,
-                    metadata=request_json.pop("metadata", None),
                 )
                 status_tracker.num_tasks_started += 1
                 status_tracker.num_tasks_in_progress += 1
@@ -431,7 +461,6 @@ class APIRequest:
     request_json: dict
     token_consumption: int
     attempts_left: int
-    metadata: dict
     result: list = field(default_factory=list)
 
     async def call_api(
@@ -441,53 +470,52 @@ class APIRequest:
         retry_queue: asyncio.Queue,
         output_filepath: Path,
         status_tracker: StatusTracker,
-        cache: Optional[dc.core.Cache] = None,
+        cache: Optional[dc.Cache] = None,
     ):
         """
-        Calls the OpenAI API and saves results.
-        Pulls responses from the cache, if available.
+        Calls the OpenAI API and appends the request and result to a JSONL file.
+        If a cache provided, the result will be stored in the cache.
+        The cache key is the hash of the request.
+
+        Args:
+            request_url: The URL to send the request to.
+            request_header: The header to send with the request.
+            retry_queue: A queue of requests that need to be retried.
+                Will be populated if the request fails.
+            output_filepath: The path to the file where the results will be saved.
+            status_tracker: A StatusTracker object that tracks the greater
+                request loop's progress.
+            cache: A diskcache.Cache object to store API responses in. Optional.
         """
-
-        # Check if the request is cached
-        cache_hit = False
-
-        if cache is not None:
-            cache_key = hash_dict(self.request_json)
-
-            if cache_key in cache:
-                logging.info(f"Request #{self.task_id} is cached")
-                response = cache[cache_key]
-                cache_hit = True
 
         error = None
 
-        if not cache_hit:
-            logging.info(f"Starting request #{self.task_id}")
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.post(
-                        url=request_url, headers=request_header, json=self.request_json
-                    ) as response:
-                        response = await response.json()
-                if "error" in response:
-                    logging.warning(
-                        f"Request {self.task_id} failed with error {response['error']}"
+        logging.info(f"Starting request #{self.task_id}")
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    url=request_url, headers=request_header, json=self.request_json
+                ) as response:
+                    response = await response.json()
+            if "error" in response:
+                logging.warning(
+                    f"Request {self.task_id} failed with error {response['error']}"
+                )
+                status_tracker.num_api_errors += 1
+                error = response
+                if "Rate limit" in response["error"].get("message", ""):
+                    status_tracker.time_of_last_rate_limit_error = int(time.time())
+                    status_tracker.num_rate_limit_errors += 1
+                    status_tracker.num_api_errors -= (
+                        1  # rate limit errors are counted separately
                     )
-                    status_tracker.num_api_errors += 1
-                    error = response
-                    if "Rate limit" in response["error"].get("message", ""):
-                        status_tracker.time_of_last_rate_limit_error = int(time.time())
-                        status_tracker.num_rate_limit_errors += 1
-                        status_tracker.num_api_errors -= (
-                            1  # rate limit errors are counted separately
-                        )
 
-            except (
-                Exception
-            ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
-                logging.warning(f"Request {self.task_id} failed with Exception {e}")
-                status_tracker.num_other_errors += 1
-                error = e
+        except (
+            Exception
+        ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
+            logging.warning(f"Request {self.task_id} failed with Exception {e}")
+            status_tracker.num_other_errors += 1
+            error = e
 
         if error:
             self.result.append(error)
@@ -497,29 +525,22 @@ class APIRequest:
                 logging.error(
                     f"Request {self.request_json} failed after all attempts. Saving errors: {self.result}"
                 )
-                data = (
-                    [self.request_json, [str(e) for e in self.result], self.metadata]
-                    if self.metadata
-                    else [self.request_json, [str(e) for e in self.result]]
-                )
+                data = [self.request_json, [str(e) for e in self.result]]
                 append_to_jsonl(data, output_filepath)
                 status_tracker.num_tasks_in_progress -= 1
                 status_tracker.num_tasks_failed += 1
         else:  # success
-            data = (
-                [self.request_json, response, self.metadata]
-                if self.metadata
-                else [self.request_json, response]
-            )
+            data = [self.request_json, response]
             append_to_jsonl(data, output_filepath)
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
-            logging.debug(f"Request {self.task_id} saved to {output_filepath}")
+            logging.debug(f"Request #{self.task_id} saved to {output_filepath}")
 
             # Store successful response in cache
-            if cache is not None and not cache_hit:
+            if cache is not None:
+                cache_key = hash_dict(self.request_json)
                 cache[cache_key] = response
-                logging.debug(f"Request {self.task_id} cached")
+                logging.debug(f"Request #{self.task_id} cached")
 
 
 # functions
