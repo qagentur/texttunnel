@@ -218,6 +218,8 @@ def process_api_requests(
         key=lambda x: request_order[hash_dict(x[0])],
     )
 
+    assert len(responses) == len(requests)
+
     # Delete file if keep_file is False
     if not keep_file:
         output_filepath.unlink()
@@ -295,7 +297,6 @@ async def aprocess_api_requests(
     last_update_time = time.time()
 
     # initialize flags
-    file_not_finished = True  # after file is empty, we'll skip reading it
     logging.debug("Initialization complete.")
 
     # initialize requests reading
@@ -303,20 +304,18 @@ async def aprocess_api_requests(
     logging.debug("Requests loaded. Entering main loop.")
 
     while True:
-        if len(requests_queue) > 0:
-            next_request_input = requests_queue.pop(0)
-        else:
-            logging.debug("Requests queue exhausted")
-            file_not_finished = False
-
         # get next request (if one is not already waiting for capacity)
+        # check if there are requests that need to be retried
         if next_request is None:
             if not queue_of_requests_to_retry.empty():
                 next_request = queue_of_requests_to_retry.get_nowait()
                 logging.debug(
                     f"Retrying request {next_request.task_id}: {next_request}"
                 )
-            elif file_not_finished:
+            # check if there are requests that haven't been tried yet
+            if len(requests_queue) > 0:
+                next_request_input = requests_queue.pop(0)
+
                 # get new request
                 request_json = next_request_input.to_dict()
                 next_request = APIRequest(
@@ -331,6 +330,9 @@ async def aprocess_api_requests(
                 status_tracker.num_tasks_started += 1
                 status_tracker.num_tasks_in_progress += 1
                 logging.debug(f"Reading request {next_request.task_id}: {next_request}")
+
+            else:
+                logging.debug("All tasks have been started.")
 
         # update available capacity
         current_time = time.time()
@@ -441,7 +443,10 @@ class APIRequest:
         status_tracker: StatusTracker,
         cache: Optional[dc.core.Cache] = None,
     ):
-        """Calls the OpenAI API and saves results."""
+        """
+        Calls the OpenAI API and saves results.
+        Pulls responses from the cache, if available.
+        """
 
         # Check if the request is cached
         cache_hit = False
@@ -500,7 +505,7 @@ class APIRequest:
                 append_to_jsonl(data, output_filepath)
                 status_tracker.num_tasks_in_progress -= 1
                 status_tracker.num_tasks_failed += 1
-        else:
+        else:  # success
             data = (
                 [self.request_json, response, self.metadata]
                 if self.metadata
@@ -511,6 +516,7 @@ class APIRequest:
             status_tracker.num_tasks_succeeded += 1
             logging.debug(f"Request {self.task_id} saved to {output_filepath}")
 
+            # Store successful response in cache
             if cache is not None and not cache_hit:
                 cache[cache_key] = response
                 logging.debug(f"Request {self.task_id} cached")
