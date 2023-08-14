@@ -1,4 +1,5 @@
 import json
+from hashlib import sha256
 from typing import Callable, List, Optional
 
 import tiktoken
@@ -223,3 +224,10 @@ def binpack_texts_in_order(
     bins.append(current_bin)
 
     return bins
+
+
+def hash_dict(d: dict) -> str:
+    """
+    Hashes a dictionary using sha256.
+    """
+    return sha256(json.dumps(d).encode("utf-8")).hexdigest()

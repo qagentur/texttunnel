@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------------------
-# This file includes a function adapted from: openai-cookbook
+# This file includes classes and functions adapted from: openai-cookbook
 # Original source code: https://github.com/openai/openai-cookbook/blob/c651bfdda64ac049747c2a174cde1c946e2baf1d/examples/api_request_parallel_processor.py
 # Copyright (c) 2023 OpenAI
 
@@ -36,7 +36,6 @@ from dataclasses import (
     dataclass,
     field,
 )
-from hashlib import sha256  # for hashing API inputs
 from pathlib import Path  # for saving results to a file
 from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 
@@ -44,16 +43,9 @@ import aiohttp
 
 # for storing API inputs, outputs, and metadata
 import diskcache as dc  # for caching API responses
-import tiktoken  # for counting tokens
 
 from texttunnel.chat import ChatCompletionRequest
-
-
-def hash_dict(d: dict) -> str:
-    """
-    Hashes a dictionary using sha256.
-    """
-    return sha256(json.dumps(d).encode("utf-8")).hexdigest()
+from texttunnel.utils import hash_dict
 
 
 def prepare_output_filepath(
@@ -98,7 +90,6 @@ def process_api_requests(
     logging_level: int = 20,
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
-    token_encoding_name: str = "cl100k_base",
     api_key: Optional[str] = None,
     cache: Optional[dc.core.Cache] = None,
 ) -> List[Dict[str, Any]]:
@@ -153,9 +144,6 @@ def process_api_requests(
             Factor to multiply the rate limit by to guarantee that the script
             stays under the limit if omitted, will default to 0.75
             (75% of the rate limit)
-        token_encoding_name: str, optional
-            Name of the token encoding used, as defined in the `tiktoken` package
-            if omitted, will default to "cl100k_base" (used by GPT-3.5 and 4)
         api_key: str, optional
             API key to use
             if omitted, the function will attempt to read it from an environment
@@ -171,6 +159,8 @@ def process_api_requests(
             - the original request
             - the API response
     """
+
+    # This function was adapted from openai-cookbook
 
     # The function is structured as follows:
     #    - Initialize things
@@ -191,9 +181,7 @@ def process_api_requests(
     output_filepath = prepare_output_filepath(output_filepath, keep_file)
 
     # Remember the order of the requests so that we can sort the results
-    request_order = {
-        hash_dict(request.to_dict()): i for i, request in enumerate(requests)
-    }
+    request_order = {request.get_hash(): i for i, request in enumerate(requests)}
 
     asyncio.run(
         aprocess_api_requests(
@@ -202,7 +190,6 @@ def process_api_requests(
             logging_level=logging_level,
             max_attempts=max_attempts,
             rate_limit_headroom_factor=rate_limit_headroom_factor,
-            token_encoding_name=token_encoding_name,
             api_key=api_key,
             cache=cache,
         )
@@ -239,7 +226,6 @@ async def aprocess_api_requests(
     logging_level: int,
     max_attempts: int,
     rate_limit_headroom_factor: float,
-    token_encoding_name: str,
     api_key: Optional[str] = None,
     cache: Optional[dc.Cache] = None,
 ):
@@ -255,16 +241,15 @@ async def aprocess_api_requests(
         logging.debug("Checking cache for requests.")
         requests_queue = []
         for request in requests:
-            request_json = request.to_dict()
-            cache_key = hash_dict(request_json)
+            cache_key = request.get_hash()
 
             if cache_key in cache:
                 response = cache[cache_key]
 
-                data = [request_json, response]
+                data = [request.to_dict(), response]
                 append_to_jsonl(data, output_filepath)
             else:
-                requests_queue.append(request_json)
+                requests_queue.append(request)
 
         request_cache_hits = len(requests) - len(requests_queue)
         logging.info(
@@ -272,7 +257,7 @@ async def aprocess_api_requests(
         )
     else:
         logging.debug("No cache provided.")
-        requests_queue = [request.to_dict() for request in requests.copy()]
+        requests_queue = requests.copy()
 
     if len(requests_queue) == 0:
         return
@@ -346,15 +331,13 @@ async def aprocess_api_requests(
                 )
             # check if there are requests that haven't been tried yet
             if len(requests_queue) > 0:
-                next_request_json = requests_queue.pop(0)
+                next_request = requests_queue.pop(0)
 
                 # get new request
                 next_request = APIRequest(
                     task_id=next(task_id_generator),
-                    request_json=next_request_json,
-                    token_consumption=num_tokens_consumed_from_request(
-                        next_request_json, token_encoding_name
-                    ),
+                    request=next_request,
+                    token_consumption=next_request.count_total_tokens(),
                     attempts_left=max_attempts,
                 )
                 status_tracker.num_tasks_started += 1
@@ -442,6 +425,8 @@ async def aprocess_api_requests(
 class StatusTracker:
     """Stores metadata about the script's progress. Only one instance is created."""
 
+    # This class was adapted from openai-cookbook
+
     num_tasks_started: int = 0
     num_tasks_in_progress: int = 0  # script ends when this reaches 0
     num_tasks_succeeded: int = 0
@@ -458,10 +443,12 @@ class APIRequest:
     Contains a method to make an API call."""
 
     task_id: int
-    request_json: dict
+    request: ChatCompletionRequest
     token_consumption: int
     attempts_left: int
     result: list = field(default_factory=list)
+
+    # This class was adapted from openai-cookbook
 
     async def call_api(
         self,
@@ -494,7 +481,7 @@ class APIRequest:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    url=request_url, headers=request_header, json=self.request_json
+                    url=request_url, headers=request_header, json=self.request.to_dict()
                 ) as response:
                     response = await response.json()
             if "error" in response:
@@ -523,14 +510,14 @@ class APIRequest:
                 retry_queue.put_nowait(self)
             else:
                 logging.error(
-                    f"Request {self.request_json} failed after all attempts. Saving errors: {self.result}"
+                    f"Request {self.request.to_dict()} failed after all attempts. Saving errors: {self.result}"
                 )
-                data = [self.request_json, [str(e) for e in self.result]]
+                data = [self.request.to_dict(), [str(e) for e in self.result]]
                 append_to_jsonl(data, output_filepath)
                 status_tracker.num_tasks_in_progress -= 1
                 status_tracker.num_tasks_failed += 1
         else:  # success
-            data = [self.request_json, response]
+            data = [self.request.to_dict(), response]
             append_to_jsonl(data, output_filepath)
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
@@ -538,7 +525,7 @@ class APIRequest:
 
             # Store successful response in cache
             if cache is not None:
-                cache_key = hash_dict(self.request_json)
+                cache_key = self.request.get_hash()
                 cache[cache_key] = response
                 logging.debug(f"Request #{self.task_id} cached")
 
@@ -552,40 +539,11 @@ def append_to_jsonl(data: Any, filename: Path) -> None:
         data: The data to append.
         filename: The file to append to.
     """
+    # This function was adapted from openai-cookbook
+
     json_string = json.dumps(data)
     with open(filename, "a") as f:
         f.write(json_string + "\n")
-
-
-def num_tokens_consumed_from_request(
-    request_json: dict,
-    token_encoding_name: str,
-):
-    """
-    Count the number of tokens in the request.
-
-    Args:
-        request_json: The JSON payload of the request.
-        token_encoding_name: The name of the token encoding to use.
-    """
-    encoding = tiktoken.get_encoding(token_encoding_name)
-
-    # tokens = prompt + n * max_tokens
-    max_tokens = request_json.get("max_tokens", 15)
-    n = request_json.get("n", 1)
-    completion_tokens = n * max_tokens
-
-    num_tokens = 0
-    for message in request_json["messages"]:
-        num_tokens += (
-            4  # every message follows <im_start>{role/name}\n{content}<im_end>\n
-        )
-        for key, value in message.items():
-            num_tokens += len(encoding.encode(value))
-            if key == "name":  # if there's a name, the role is omitted
-                num_tokens -= 1  # role is always required and always 1 token
-    num_tokens += 2  # every reply is primed with <im_start>assistant
-    return num_tokens + completion_tokens
 
 
 def task_id_generator_function() -> Generator[int, None, None]:
@@ -595,6 +553,8 @@ def task_id_generator_function() -> Generator[int, None, None]:
     Returns:
         A generator that yields integers.
     """
+    # This function was adapted from openai-cookbook
+
     task_id = 0
     while True:
         yield task_id
