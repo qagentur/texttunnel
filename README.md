@@ -50,4 +50,4 @@ To get started with development, follow these steps:
 - run `poetry install` to install the dependencies
 - run the tests with `poetry run pytest -v`
 
-This project uses [Google-style](https://google.github.io/styleguide/pyguide.html#381-docstrings) docstrings.
+This project uses [Google-style](https://google.github.io/styleguide/pyguide.html#381-docstrings) docstrings and [black](https://github.com/psf/black) formatting.
