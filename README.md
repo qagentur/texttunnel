@@ -4,7 +4,7 @@ This package offers a straightforward interface for integrating the GPT-3.5 and 
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
 
-🚧 Status: This package is in early development and is not yet ready for use. 🚧
+🚧 Status: This package is in beta. Don't use it in production. 🚧
 
 Features:
 
@@ -25,11 +25,20 @@ The package is not yet available on PyPI. To install it, clone the repository an
 pip install git+https://github.com/qagentur/texttunnel.git
 ```
 
+or adding this line to your pyproject.toml, if you're using poetry:
+
+```toml
+[tool.poetry.dependencies]
+texttunnel = { git = "https://github.com/qagentur/texttunnel.git", branch = "main" }
+```
+
 ## Usage
 
 Create an account on [OpenAI](https://openai.com) and get an API key. Set it as an environment variable called `OPENAI_API_KEY`.
 
 Check the [examples](examples) directory for examples of how to use this package.
+
+If your account has been granted higher rate limits than the ones configured in the models module, you can override the default attributes of the Model class instances.
 
 ## Development
 
