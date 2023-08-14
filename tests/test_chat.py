@@ -88,8 +88,8 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     )
 
     assert request.function_call == {"name": "function_name"}
-    assert request.count_tokens() > 0
-    assert request.estimate_input_cost_usd() > 0
+    assert request.count_total_tokens() > 0
+    assert request.estimate_cost_usd() > 0
     assert isinstance(request.to_dict(), dict)
     assert request.to_dict()["temperature"] == 0.5
 
@@ -112,8 +112,8 @@ def test_build_binpacked_requests(
 
 def test_chat_completion_request_context_size_check(chat_fixture, function_fixture):
     tiny_model = chat.Model(
-        name="tiny-model",
-        context_size=1,
+        name="gpt-3.5-turbo",
+        context_size=1,  # only for testing, real context size is 4096
         input_token_price_per_1k=0.002,
         output_token_price_per_1k=0.004,
         tokens_per_minute=90000,
