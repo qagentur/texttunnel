@@ -130,13 +130,21 @@ class Chat:
         """
         return [message.to_dict() for message in self.messages]
 
-    def count_tokens(self, model: str = "gpt-3.5-turbo-0613") -> int:
+    def count_tokens(
+        self,
+        model: str = "gpt-3.5-turbo-0613",
+        show_changing_model_warning: bool = False,
+    ) -> int:
         """
         Return the number of tokens used.
-        Note that this depends on the model used.
+        Note that this depends on the model used. Models that are not versioned
+        with a date can change over time, causing an inaccurate token count
+        by this function.
 
         Args:
             model: The name of the model to use. Defaults to "gpt-3.5-turbo-0613".
+            show_changing_model_warning: Whether to print a warning if a model
+                is used that may change over time. Defaults to False.
 
         Returns:
             The number of tokens used.
@@ -146,19 +154,22 @@ class Chat:
         try:
             encoding = tiktoken.encoding_for_model(model)
         except KeyError:
-            print("Warning: model not found. Using cl100k_base encoding.")
+            if show_changing_model_warning:
+                print("Warning: model not found. Using cl100k_base encoding.")
             encoding = tiktoken.get_encoding("cl100k_base")
 
         if model == "gpt-3.5-turbo":
-            print(
-                "Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
-            )
+            if show_changing_model_warning:
+                print(
+                    "Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
+                )
             model = "gpt-3.5-turbo-0613"
 
         if model == "gpt-4":
-            print(
-                "Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613."
-            )
+            if show_changing_model_warning:
+                print(
+                    "Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613."
+                )
             model = "gpt-4-0613"
 
         if model in {
