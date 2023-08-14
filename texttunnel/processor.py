@@ -33,10 +33,10 @@ import tempfile  # for creating a temporary file to save results
 import time  # for sleeping after rate limit is hit
 from dataclasses import dataclass, field
 from pathlib import Path  # for saving results to a file
-from typing import (Any, Dict, Generator, List, Optional,  # for type hints
-                    Union)
+from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 
 import aiohttp
+
 # for storing API inputs, outputs, and metadata
 import diskcache as dc  # for caching API responses
 
