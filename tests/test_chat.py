@@ -1,61 +1,6 @@
 import pytest
-import tiktoken
 
-from texttunnel import chat, models
-
-
-@pytest.fixture
-def chat_fixture():
-    return chat.Chat(
-        messages=[
-            chat.ChatMessage(
-                role="system",
-                content="You are a helpful assistant.",
-            ),
-            chat.ChatMessage(
-                role="user",
-                content="Hello, world!",
-            ),
-        ]
-    )
-
-
-@pytest.fixture
-def function_fixture():
-    return {
-        "name": "function_name",
-        "parameters": {
-            "type": "object",
-            "properties": {"argument1": {"type": "string"}},
-        },
-    }
-
-
-@pytest.fixture
-def model_fixture():
-    return models.Model(
-        name="gpt-3.5-turbo",
-        context_size=4096,
-        input_token_price_per_1k=0.002,
-        output_token_price_per_1k=0.004,
-        tokens_per_minute=90000,
-        requests_per_minute=3500,
-    )
-
-
-@pytest.fixture
-def texts_fixture():
-    return [
-        "The first text.",
-        "",  # empty string
-        "The third text has non-ASCII characters: 你好世界",  # hello world in Chinese
-        "The fourth text has a newline.\n",
-    ]
-
-
-@pytest.fixture
-def encoding_fixture():
-    return tiktoken.get_encoding("cl100k_base")
+from texttunnel import chat
 
 
 def test_chat_add_message(chat_fixture):
@@ -102,11 +47,11 @@ def test_chat_completion_request_context_size_exceeded(
             model=model_fixture,
             chat=chat_fixture,
             function=function_fixture,
-            max_output_tokens=4080, # doesn't fit
+            max_output_tokens=4080,  # doesn't fit
         )
 
 
-def test_build_binpacked_requests(
+def test_build_binpacked_requests_max_texts_per_request(
     model_fixture,
     function_fixture,
     texts_fixture,
