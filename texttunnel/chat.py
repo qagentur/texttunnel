@@ -249,7 +249,7 @@ class ChatCompletionRequest:
         num_input_tokens = self.count_input_tokens()
         num_output_tokens = self.count_output_tokens()
         num_total_tokens = num_input_tokens + num_output_tokens
-        
+
         if num_total_tokens > self.model.context_size:
             raise ValueError(
                 f"""
@@ -351,7 +351,8 @@ def build_binpacked_requests(
         system_message: The message to include at the beginning of each chat.
         texts: A list of texts to binpack into chats.
         max_tokens_per_request: The maximum number of tokens allowed in one request.
-            Defaults to 90% of the model's context size.
+            Defaults to 90% of the model's context size. The 10% buffer makes
+            sure that mistakes in token counting don't cause the request to fail.
         max_texts_per_request: The maximum number of texts allowed in one request.
             Defaults to None, which means there is no limit.
         max_output_tokens: The maximum number of tokens allowed in the completion.

@@ -51,6 +51,21 @@ def test_chat_completion_request_context_size_exceeded(
         )
 
 
+def test_build_pinbacked_requests_default_settings(
+    model_fixture,
+    function_fixture,
+    texts_long_fixture,
+):
+    requests = chat.build_binpacked_requests(
+        system_message="You are a helpful assistant.",
+        model=model_fixture,
+        function=function_fixture,
+        texts=texts_long_fixture,
+    )
+
+    assert all([r.count_total_tokens() <= model_fixture.context_size for r in requests])
+
+
 def test_build_binpacked_requests_max_texts_per_request(
     model_fixture,
     function_fixture,

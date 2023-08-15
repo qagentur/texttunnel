@@ -3,6 +3,7 @@ import itertools
 
 from texttunnel import utils
 
+
 def test_num_tokens_from_text(texts_fixture):
     num_tokens = [utils.num_tokens_from_text(text) for text in texts_fixture]
     assert num_tokens == [4, 0, 15, 7]
