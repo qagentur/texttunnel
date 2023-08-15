@@ -94,6 +94,18 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     assert request.to_dict()["temperature"] == 0.5
 
 
+def test_chat_completion_request_context_size_exceeded(
+    model_fixture, chat_fixture, function_fixture
+):
+    with pytest.raises(ValueError):
+        chat.ChatCompletionRequest(
+            model=model_fixture,
+            chat=chat_fixture,
+            function=function_fixture,
+            max_output_tokens=4080, # doesn't fit
+        )
+
+
 def test_build_binpacked_requests(
     model_fixture,
     function_fixture,

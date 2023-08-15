@@ -211,7 +211,7 @@ class ChatCompletionRequest:
         function: The function definition to use for the assistant's response.
             Must be a dictionary that describes a valid JSON schema.
             See https://platform.openai.com/docs/guides/gpt/function-calling
-        max_tokens: The maximum number of tokens allowed in the completion.
+        max_output_tokens: The maximum number of tokens allowed in the completion.
             Defaults to 128.
         model_params: Additional keyword arguments to pass to the OpenAI API. See
             https://platform.openai.com/docs/api-reference/completions/create
@@ -222,7 +222,7 @@ class ChatCompletionRequest:
         chat: Chat,
         model: Model,
         function: FunctionDef,
-        max_tokens: int = 128,
+        max_output_tokens: int = 128,
         model_params: Optional[Dict[str, Any]] = None,
     ):
         self.chat = chat
@@ -238,17 +238,26 @@ class ChatCompletionRequest:
         self.function_call = {"name": function["name"]}
 
         if model_params is None:
-            model_params = {"max_tokens": max_tokens}
+            model_params = {"max_tokens": max_output_tokens}
         else:
-            model_params["max_tokens"] = max_tokens
+            model_params["max_tokens"] = max_output_tokens
 
         self.model_params = model_params
 
-        # Check that the inputs fit into the context size
+        # Check that the inputs fit into the context size and leaves
+        # enough space for the output
         num_input_tokens = self.count_input_tokens()
-        if num_input_tokens > self.model.context_size:
+        num_output_tokens = self.count_output_tokens()
+        num_total_tokens = num_input_tokens + num_output_tokens
+        
+        if num_total_tokens > self.model.context_size:
             raise ValueError(
-                f"Input tokens ({num_input_tokens}) exceed the context size ({self.model.context_size})."
+                f"""
+                Total number of tokens ({num_total_tokens}) exceeds the context
+                size of the model ({self.model.context_size}). Input tokens:
+                {num_input_tokens}. Output tokens: {num_output_tokens}.
+                Context size: {self.model.context_size}.
+                """
             )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -322,6 +331,7 @@ def build_binpacked_requests(
     texts: List[str],
     max_tokens_per_request: Optional[int] = None,
     max_texts_per_request: Optional[int] = None,
+    max_output_tokens: int = 128,
     binpacking_function: Callable = utils.binpack_texts_in_order,
     formatter_function: Callable = utils.format_texts_as_json,
     encoding_name: str = "cl100k_base",
@@ -340,10 +350,11 @@ def build_binpacked_requests(
             See https://platform.openai.com/docs/guides/gpt/function-calling
         system_message: The message to include at the beginning of each chat.
         texts: A list of texts to binpack into chats.
-        max_tokens_per_chat: The maximum number of tokens allowed per chat. Defaults
-            to 90% of the model's context size.
-        max_texts_per_request: The maximum number of texts allowed per chat. Defaults
-            to None, which means there is no limit.
+        max_tokens_per_request: The maximum number of tokens allowed in one request.
+            Defaults to 90% of the model's context size.
+        max_texts_per_request: The maximum number of texts allowed in one request.
+            Defaults to None, which means there is no limit.
+        max_output_tokens: The maximum number of tokens allowed in the completion.
         binpacking_function: The function to use for binpacking.
             Must take a list of texts and return a list of lists of texts.
             Defaults to binpack_texts_in_order().
@@ -364,12 +375,13 @@ def build_binpacked_requests(
     if max_tokens_per_request is None:
         max_tokens_per_request = int(model.context_size * 0.9)
 
-    # The system message counts towards the token limit
-    static_tokens = utils.num_tokens_from_text(
-        system_message
-    ) + utils.num_tokens_from_text(json.dumps(function))
+    # System message and function definition count towards the token limit
+    overheads = [system_message, json.dumps(function)]
+    static_tokens = sum([utils.num_tokens_from_text(text) for text in overheads])
 
-    max_tokens_per_chat = max_tokens_per_request - static_tokens
+    # Calculate the maximum number of tokens left for the chat,
+    # after accounting for the overheads and the output tokens
+    max_tokens_per_chat = max_tokens_per_request - static_tokens - max_output_tokens
 
     # Binpack the texts into chats
     text_bins = binpacking_function(
