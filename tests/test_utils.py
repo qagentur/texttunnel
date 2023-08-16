@@ -1,58 +1,7 @@
 import pytest
-import tiktoken
 import itertools
 
 from texttunnel import utils
-
-
-@pytest.fixture
-def texts_fixture():
-    return [
-        "The first text.",
-        "",  # empty string
-        "The third text has non-ASCII characters: 你好世界",  # hello world in Chinese
-        "The fourth text has a newline.\n",
-    ]
-
-
-@pytest.fixture
-def texts_long_fixture():
-    n_texts = 100
-    min_length = 10
-    max_length = 1000
-
-    text_lengths = range(
-        min_length, max_length + 10, 10  # range is not inclusive
-    )  # 100 variations of text length
-
-    j = 0
-
-    # Cycle through texts lengths to create a list of texts
-    texts = []
-    for _ in range(n_texts):
-        text_length = text_lengths[j]
-        text = " ".join(["hello"] * text_length)  # Nirvana lyrics generator
-        texts.append(text)
-        if j < len(text_lengths) - 1:
-            j += 1
-        else:
-            j = 0
-
-    return texts
-
-
-@pytest.fixture
-def texts_nonascii_fixture():
-    return [
-        "Äpfel",  # apples in German
-        "👋 🌍",
-        "你好世界",  # hello world in Chinese
-    ]
-
-
-@pytest.fixture
-def encoding_fixture():
-    return tiktoken.get_encoding("cl100k_base")
 
 
 def test_num_tokens_from_text(texts_fixture):
