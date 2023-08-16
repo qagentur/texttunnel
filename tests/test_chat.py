@@ -51,7 +51,7 @@ def test_chat_completion_request_context_size_exceeded(
         )
 
 
-def test_build_pinbacked_requests_default_settings(
+def test_build_binpacked_requests_default_settings(
     model_fixture,
     function_fixture,
     texts_long_fixture,
