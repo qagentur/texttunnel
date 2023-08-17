@@ -408,6 +408,7 @@ def build_binpacked_requests(
             model=model,
             function=function,
             model_params=model_params,
+            max_output_tokens=max_output_tokens,
         )
 
         requests.append(request)
