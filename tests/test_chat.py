@@ -82,6 +82,21 @@ def test_build_binpacked_requests_max_texts_per_request(
     assert len(requests) == 2
 
 
+def test_build_requests(
+    model_fixture,
+    function_fixture,
+    texts_fixture,
+):
+    requests = chat.build_requests(
+        system_message="You are a helpful assistant.",
+        model=model_fixture,
+        function=function_fixture,
+        texts=texts_fixture,
+    )
+
+    assert len(requests) == len(texts_fixture)
+
+
 def test_chat_completion_request_context_size_check(chat_fixture, function_fixture):
     tiny_model = chat.Model(
         name="gpt-3.5-turbo",

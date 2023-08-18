@@ -340,8 +340,11 @@ def build_binpacked_requests(
 ) -> List[ChatCompletionRequest]:
     """
     Builds a list of ChatCompletionRequests from a list of texts.
+    If possible, multiple texts will be combined into a single ChatCompletionRequest.
+    This can reduce the number of tokens spent on overheads like the system message
+    and function definition.
 
-    The list can then be passed to processor.process_api_requests().
+    The requests can then be passed to processor.process_api_requests().
 
     Args:
         model: The model to use for completion.
@@ -414,3 +417,53 @@ def build_binpacked_requests(
         requests.append(request)
 
     return requests
+
+
+def build_requests(
+    model: Model,
+    function: FunctionDef,
+    system_message: str,
+    texts: List[str],
+    max_output_tokens: int = 128,
+    encoding_name: str = "cl100k_base",
+    long_text_handling: str = "error",
+    model_params: Optional[Dict[str, Any]] = None,
+) -> List[ChatCompletionRequest]:
+    """
+    Builds a list of ChatCompletionRequests from a list of texts.
+    The requests can then be passed to processor.process_api_requests().
+
+    Args:
+        model: The model to use for completion.
+        function: The function definition to use for the assistant's response.
+            Must be a dictionary that describes a valid JSON schema.
+            See https://platform.openai.com/docs/guides/gpt/function-calling
+        system_message: The message to include at the beginning of each chat.
+        texts: A list of texts to binpack into chats.
+        max_output_tokens: The maximum number of tokens allowed in the completion.
+        encoding_name: The name of the encoding to use for tokenization.
+            Defaults to "cl100k_base".
+        long_text_handling: Passed to the binpacking function. Defaults to
+            "error", which means that an error will be raised if a text is too
+            long to fit in a single chat.
+        model_params: Additional keyword arguments to pass to the OpenAI API. See
+            https://platform.openai.com/docs/api-reference/completions/create
+
+    Returns:
+        A list of ChatCompletionRequests.
+    """
+
+    return build_binpacked_requests(
+        model=model,
+        function=function,
+        system_message=system_message,
+        texts=texts,
+        max_tokens_per_request=None,
+        max_texts_per_request=1,
+        max_output_tokens=max_output_tokens,
+        binpacking_function=utils.binpack_texts_in_order,
+        formatter_function=utils.format_texts_with_spaces,
+        encoding_name=encoding_name,
+        long_text_handling=long_text_handling,
+        model_params=model_params,
+    )
