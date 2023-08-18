@@ -1,10 +1,15 @@
 # %%
-from texttunnel import chat, models, processor
+import logging
+
 from diskcache import Cache
+
+from texttunnel import chat, models, processor
 
 # Create a cache to store the results of the requests
 # When this script is run again, the results will be loaded from the cache
 cache = Cache("mycache")
+
+logging.basicConfig(level=20)  # log INFO and above
 
 # Look up information on models, pricing and rate limits:
 # https://platform.openai.com/docs/models/overview
@@ -61,7 +66,6 @@ print(f"Estimated cost: ${cost_usd:.4f}")
 # Requires that the OPENAI_API_KEY environment variable is set.
 responses = processor.process_api_requests(
     requests=requests,
-    logging_level=20,  # log INFO and above
     cache=cache,  # use diskcache to cache API responses
 )
 
