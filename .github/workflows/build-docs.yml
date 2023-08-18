@@ -11,13 +11,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v3
-        - name: Get Python version
-          id: get-python-version
-          run: echo "{version}={$(cat .python-version)}" >> $GITHUB_OUTPUT
         - name: Install Python
           uses: actions/setup-python@v4
           with:
-            python-version: ${{ steps.get-python-version.outputs.version }}
+            python-version: 3.9.12
         - name: Install dependencies
           uses: abatilo/actions-poetry@v2
         - name: Setup a local virtual environment
