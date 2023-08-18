@@ -1,0 +1,42 @@
+name: Build and Deploy Docs
+
+on:
+    push:
+      branches: [ main ]
+    release:
+      types: [ published ]
+
+jobs:
+    build-and-deploy:
+        runs-on: ubuntu-latest
+        steps:
+        - uses: actions/checkout@v3
+        - name: Get Python version
+          id: get-python-version
+          run: echo "{version}={$(cat .python-version)}" >> $GITHUB_OUTPUT
+        - name: Install Python
+          uses: actions/setup-python@v4
+          with:
+            python-version: ${{ steps.get-python-version.outputs.version }}
+        - name: Install dependencies
+          uses: abatilo/actions-poetry@v2
+        - name: Setup a local virtual environment
+          run: |
+            poetry config virtualenvs.create true --local
+            poetry config virtualenvs.in-project true --local
+        - uses: actions/cache@v3
+          name: Define a cache for the virtual environment
+          with:
+            path: ./.venv
+            key: venv-${{ hashFiles('poetry.lock') }}
+        - name: Build sphinx docs
+          run: |
+            poetry run make html
+        - name: Deploy docs to Github Pages
+          uses: peaceiris/actions-gh-pages@v3
+          with:
+            github_token: ${{ secrets.GITHUB_TOKEN }}
+            publish_dir: ./docs/build/html
+
+
+    

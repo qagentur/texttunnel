@@ -96,7 +96,7 @@ GPT_4_0314 = Model(
 )
 
 # legacy
-GPT_4_32k_0314 = Model(
+GPT_4_32K_0314 = Model(
     name="gpt-4-32k-0314",
     context_size=32768,
     input_token_price_per_1k=0.06,
@@ -142,7 +142,7 @@ GPT_3_5_TURBO_16K_0613 = Model(
 )
 
 # legacy
-GPT_3_5_TURBO_03_01 = Model(
+GPT_3_5_TURBO_0301 = Model(
     name="gpt-3.5-turbo-0301",
     context_size=4096,
     input_token_price_per_1k=0.0015,
