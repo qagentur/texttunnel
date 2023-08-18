@@ -34,6 +34,8 @@ texttunnel = { git = "https://github.com/qagentur/texttunnel.git", branch = "mai
 
 ## Usage
 
+Check the docs: [https://qagentur.github.io/texttunnel/](https://qagentur.github.io/texttunnel/)
+
 Create an account on [OpenAI](https://openai.com) and get an API key. Set it as an environment variable called `OPENAI_API_KEY`.
 
 Check the [examples](examples) directory for examples of how to use this package.
