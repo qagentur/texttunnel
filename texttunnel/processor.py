@@ -83,7 +83,6 @@ def process_api_requests(
     requests: List[ChatCompletionRequest],
     output_filepath: Optional[Union[str, Path]] = None,
     keep_file: bool = False,
-    logging_level: int = 20,
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     api_key: Optional[str] = None,
@@ -126,13 +125,6 @@ def process_api_requests(
             to the results being returned by the function.
             Defaults to False, so the file will be deleted after the script finishes.
             Setting this to True is not compatible with output_filepath=None.
-        logging_level: int, optional
-            level of logging to use; higher numbers will log fewer messages
-            40 = ERROR; will log only when requests fail after all retries
-            30 = WARNING; will log when requests his rate limits or other errors
-            20 = INFO; will log when requests start and the status at finish
-            10 = DEBUG; will log various things as the loop runs to see when they occur
-            if omitted, will default to 20 (INFO).
         max_attempts: int, optional
             Number of times to retry a failed request before giving up
             if omitted, will default to 5
@@ -183,7 +175,6 @@ def process_api_requests(
         aprocess_api_requests(
             requests=requests,
             output_filepath=output_filepath,
-            logging_level=logging_level,
             max_attempts=max_attempts,
             rate_limit_headroom_factor=rate_limit_headroom_factor,
             api_key=api_key,
@@ -219,17 +210,12 @@ def process_api_requests(
 async def aprocess_api_requests(
     requests: List[ChatCompletionRequest],
     output_filepath: Path,
-    logging_level: int,
     max_attempts: int,
     rate_limit_headroom_factor: float,
     api_key: Optional[str] = None,
     cache: Optional[dc.Cache] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
-
-    # initialize logging
-    logging.basicConfig(level=logging_level)
-    logging.debug(f"Logging initialized at level {logging_level}")
 
     # Check if requests can be served from the cache
     # Build a queue of requests that need to be sent to the API
