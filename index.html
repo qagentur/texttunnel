@@ -65,6 +65,7 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#texttunnel.chat.build_binpacked_requests"><code class="docutils literal notranslate"><span class="pre">build_binpacked_requests()</span></code></a></li>
+<li><a class="reference internal" href="#texttunnel.chat.build_requests"><code class="docutils literal notranslate"><span class="pre">build_requests()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.chat.is_valid_function_def"><code class="docutils literal notranslate"><span class="pre">is_valid_function_def()</span></code></a></li>
 </ul>
 </li>
@@ -300,8 +301,11 @@ are flattened into the top-level dictionary.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="texttunnel.chat.build_binpacked_requests">
 <span class="sig-prename descclassname"><span class="pre">texttunnel.chat.</span></span><span class="sig-name descname"><span class="pre">build_binpacked_requests</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">model:</span> <span class="pre">~texttunnel.models.Model,</span> <span class="pre">function:</span> <span class="pre">~typing.Dict[str,</span> <span class="pre">str],</span> <span class="pre">system_message:</span> <span class="pre">str,</span> <span class="pre">texts:</span> <span class="pre">~typing.List[str],</span> <span class="pre">max_tokens_per_request:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">max_texts_per_request:</span> <span class="pre">int</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None,</span> <span class="pre">max_output_tokens:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">128,</span> <span class="pre">binpacking_function:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">binpack_texts_in_order&gt;,</span> <span class="pre">formatter_function:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">format_texts_as_json&gt;,</span> <span class="pre">encoding_name:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'cl100k_base',</span> <span class="pre">long_text_handling:</span> <span class="pre">str</span> <span class="pre">=</span> <span class="pre">'error',</span> <span class="pre">model_params:</span> <span class="pre">~typing.Dict[str,</span> <span class="pre">~typing.Any]</span> <span class="pre">|</span> <span class="pre">None</span> <span class="pre">=</span> <span class="pre">None</span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest" title="texttunnel.chat.ChatCompletionRequest"><span class="pre">ChatCompletionRequest</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#texttunnel.chat.build_binpacked_requests" title="Permalink to this definition"></a></dt>
-<dd><p>Builds a list of ChatCompletionRequests from a list of texts.</p>
-<p>The list can then be passed to processor.process_api_requests().</p>
+<dd><p>Builds a list of ChatCompletionRequests from a list of texts.
+If possible, multiple texts will be combined into a single ChatCompletionRequest.
+This can reduce the number of tokens spent on overheads like the system message
+and function definition.</p>
+<p>The requests can then be passed to processor.process_api_requests().</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -323,6 +327,36 @@ Defaults to binpack_texts_in_order().</p></li>
 <li><p><strong>formatter_function</strong> – The function to use for formatting the texts.
 Must take a list of texts and return a single string.
 Defaults to format_texts_as_json().</p></li>
+<li><p><strong>encoding_name</strong> – The name of the encoding to use for tokenization.
+Defaults to “cl100k_base”.</p></li>
+<li><p><strong>long_text_handling</strong> – Passed to the binpacking function. Defaults to
+“error”, which means that an error will be raised if a text is too
+long to fit in a single chat.</p></li>
+<li><p><strong>model_params</strong> – Additional keyword arguments to pass to the OpenAI API. See
+<a class="reference external" href="https://platform.openai.com/docs/api-reference/completions/create">https://platform.openai.com/docs/api-reference/completions/create</a></p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of ChatCompletionRequests.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="texttunnel.chat.build_requests">
+<span class="sig-prename descclassname"><span class="pre">texttunnel.chat.</span></span><span class="sig-name descname"><span class="pre">build_requests</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#texttunnel.models.Model" title="texttunnel.models.Model"><span class="pre">Model</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">system_message</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">texts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_output_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cl100k_base'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_text_handling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'error'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest" title="texttunnel.chat.ChatCompletionRequest"><span class="pre">ChatCompletionRequest</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#texttunnel.chat.build_requests" title="Permalink to this definition"></a></dt>
+<dd><p>Builds a list of ChatCompletionRequests from a list of texts.
+The requests can then be passed to processor.process_api_requests().</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model</strong> – The model to use for completion.</p></li>
+<li><p><strong>function</strong> – The function definition to use for the assistant’s response.
+Must be a dictionary that describes a valid JSON schema.
+See <a class="reference external" href="https://platform.openai.com/docs/guides/gpt/function-calling">https://platform.openai.com/docs/guides/gpt/function-calling</a></p></li>
+<li><p><strong>system_message</strong> – The message to include at the beginning of each chat.</p></li>
+<li><p><strong>texts</strong> – A list of texts to binpack into chats.</p></li>
+<li><p><strong>max_output_tokens</strong> – The maximum number of tokens allowed in the completion.</p></li>
 <li><p><strong>encoding_name</strong> – The name of the encoding to use for tokenization.
 Defaults to “cl100k_base”.</p></li>
 <li><p><strong>long_text_handling</strong> – Passed to the binpacking function. Defaults to
