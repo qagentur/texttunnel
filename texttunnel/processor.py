@@ -39,9 +39,13 @@ import aiohttp
 
 # for storing API inputs, outputs, and metadata
 import diskcache as dc  # for caching API responses
+import jsonschema  # for validating API responses
 
 from texttunnel.chat import ChatCompletionRequest
+from texttunnel.models import Model
 from texttunnel.utils import hash_dict
+
+Response = List[Dict[str, Any]]
 
 
 def prepare_output_filepath(
@@ -87,7 +91,7 @@ def process_api_requests(
     rate_limit_headroom_factor: float = 0.75,
     api_key: Optional[str] = None,
     cache: Optional[dc.core.Cache] = None,
-) -> List[Dict[str, Any]]:
+) -> List[Response]:
     """
 
     Using the OpenAI API to process lots of text quickly takes some care.
@@ -543,7 +547,108 @@ def task_id_generator_function() -> Generator[int, None, None]:
         task_id += 1
 
 
-def parse_response(response: List[Dict]) -> Dict[str, Any]:
+RESPONSE_SCHEMA = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "type": "array",
+    "items": [
+        # Request schema
+        {
+            "type": "object",
+            "properties": {
+                "model": {"type": "string"},
+                "max_tokens": {"type": "integer"},
+                "messages": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "role": {"type": "string"},
+                            "content": {"type": "string"},
+                        },
+                        "required": ["role", "content"],
+                    },
+                },
+                "functions": {
+                    "type": "array",
+                    "properties": {
+                        "name": {"type": "string"},
+                        "parameters": {"type": "object"},
+                    },
+                    "required": ["name", "parameters"],
+                },
+            },
+            "required": [
+                "model",
+                "max_tokens",
+                "messages",
+                "functions",
+            ],
+        },
+        # Response schema
+        {
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "object": {"type": "string"},
+                "created": {"type": "integer"},
+                "model": {"type": "string"},
+                "choices": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "index": {"type": "integer"},
+                            "message": {
+                                "type": "object",
+                                "properties": {
+                                    "role": {"type": "string"},
+                                    "content": {"type": ["string", "null"]},
+                                    "function_call": {
+                                        "type": "object",
+                                        "properties": {
+                                            "name": {"type": "string"},
+                                            "arguments": {"type": "string"},
+                                        },
+                                        "required": ["name", "arguments"],
+                                    },
+                                },
+                                "required": ["role", "function_call"],
+                            },
+                            "finish_reason": {"type": "string"},
+                        },
+                        "required": ["index", "message", "finish_reason"],
+                    },
+                },
+                "usage": {
+                    "type": "object",
+                    "properties": {
+                        "prompt_tokens": {"type": "integer"},
+                        "completion_tokens": {"type": "integer"},
+                        "total_tokens": {"type": "integer"},
+                    },
+                    "required": ["prompt_tokens", "completion_tokens", "total_tokens"],
+                },
+            },
+            "required": ["id", "object", "created", "model", "choices", "usage"],
+        },
+    ],
+}
+
+
+def is_valid_response(response: Response, print_errors=False) -> bool:
+    """
+    Check if a response conforms to the response JSON schema.
+    """
+    try:
+        jsonschema.validate(response, RESPONSE_SCHEMA)
+        return True
+    except jsonschema.exceptions.ValidationError as e:
+        if print_errors:
+            print(e)
+        return False
+
+
+def parse_arguments(response: Response) -> Dict[str, Any]:
     """
     Extract the function call arguments from a response.
 
@@ -554,41 +659,44 @@ def parse_response(response: List[Dict]) -> Dict[str, Any]:
     Returns:
         The function call arguments.
     """
-    if len(response) != 2:
-        raise ValueError(
-            f"""
-            Response {response} is incorrectly formatted.
-            It should be a list of length 2, where the first element is the request
-            and the second element is the response.
-            """
-        )
 
-    try:
-        return json.loads(
-            response[1]["choices"][0]["message"]["function_call"]["arguments"]
-        )
-    except KeyError as e:
-        raise ValueError(f"Response {response} is incorrectly formatted. Error: {e}")
-    except json.decoder.JSONDecodeError as e:
-        raise ValueError(f"Response {response} is not valid JSON. Error: {e}")
+    if not is_valid_response(response):
+        raise ValueError("Response is not valid.")
+
+    return json.loads(
+        response[1]["choices"][0]["message"]["function_call"]["arguments"]
+    )
 
 
-def parse_responses(responses: List[List[Dict]]) -> List[Dict[str, Any]]:
+def parse_token_usage(response: Response) -> Dict[str, Any]:
     """
-    Extract the function call arguments from a list of responses.
+    Extract the token usage from a response.
 
     Args:
-        responses: List of responses to parse.
+        response: The response to parse. It should be a list of length 2, where the
+            first element is the request and the second element is the response.
 
     Returns:
-        List where each element is the function call arguments for a response.
+        The token usage.
     """
+    if not is_valid_response(response):
+        raise ValueError("Response is not valid.")
 
-    parsed = []
-    for i, response in enumerate(responses):
-        try:
-            parsed.append(parse_response(response))
-        except ValueError as e:
-            raise ValueError(f"Response {i} is incorrectly formatted. Error: {e}")
+    return response[1]["usage"]
 
-    return parsed
+
+def usage_to_cost(usage: Dict, model: Model):
+    """
+    Convert token usage to cost in USD.
+
+    Args:
+        usage: The token usage. Retrieve it with parse_token_usage().
+        model: The model used to generate the response.
+
+    Returns:
+        The cost in USD.
+    """
+    input_cost = model.input_token_price_per_1k * usage["prompt_tokens"] / 1000
+    output_cost = model.output_token_price_per_1k * usage["completion_tokens"] / 1000
+    total_cost = input_cost + output_cost
+    return total_cost
