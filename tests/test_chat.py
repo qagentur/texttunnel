@@ -1,6 +1,6 @@
 import pytest
 
-from texttunnel import chat
+from texttunnel import chat, models
 
 
 def test_chat_add_message(chat_fixture):
@@ -29,7 +29,7 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
-        model_params={"temperature": 0.5},
+        params=models.Parameters(temperature=0.5),
     )
 
     assert request.function_call == {"name": "function_name"}
@@ -47,7 +47,7 @@ def test_chat_completion_request_context_size_exceeded(
             model=model_fixture,
             chat=chat_fixture,
             function=function_fixture,
-            max_output_tokens=4080,  # doesn't fit
+            params=models.Parameters(max_tokens=4080),  # doesn't fit
         )
 
 
