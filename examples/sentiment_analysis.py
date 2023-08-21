@@ -59,8 +59,8 @@ requests = chat.build_binpacked_requests(
 
 # %%
 # Estimate the cost of the requests
-cost_usd = sum([r.estimate_cost_usd() for r in requests])
-print(f"Estimated cost: ${cost_usd:.4f}")
+estimated_cost_usd = sum([r.estimate_cost_usd() for r in requests])
+print(f"Estimated cost: ${estimated_cost_usd:.4f}")
 
 # %%
 # Requires that the OPENAI_API_KEY environment variable is set.
@@ -72,9 +72,22 @@ responses = processor.process_api_requests(
 cache.close()
 
 # %%
-results = processor.parse_responses(responses=responses)
+results = [processor.parse_arguments(response=response) for response in responses]
 
 for text, answer in zip(input_texts, results[0]["answers"]):
     print(f"{text}: {answer['sentiment']}")
+
+# %%
+actual_cost_usd = sum(
+    [
+        processor.usage_to_cost(
+            usage=processor.parse_token_usage(response=response),
+            model=models.GPT_3_5_TURBO,
+        )
+        for response in responses
+    ]
+)
+
+print(f"Actual cost: ${actual_cost_usd:.4f}")  # output token limit wasn't fully used
 
 # %%

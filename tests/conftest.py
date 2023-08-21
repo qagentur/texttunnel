@@ -63,14 +63,15 @@ def response_fixture():
     return [
         {
             "model": "gpt-3.5-turbo",
+            "max_tokens": 50,
             "messages": [
                 {
                     "role": "system",
-                    "text": "You are a helpful assistant",
+                    "content": "You are a helpful assistant",
                 },
                 {
                     "role": "user",
-                    "text": "How are you?",
+                    "content": "How are you?",
                 },
             ],
             "functions": [
@@ -89,6 +90,10 @@ def response_fixture():
             ],
         },
         {
+            "id": "chatcmpl-7nQcrnnrqATiOktw8nY0AsbfGXqrn",
+            "object": "chat.completion",
+            "created": 1692014777,
+            "model": "gpt-3.5-turbo",
             "choices": [
                 {
                     "index": 0,
@@ -99,10 +104,15 @@ def response_fixture():
                             "name": "tell_feeling",
                             "arguments": json.dumps({"feeling": "happy"}),
                         },
-                        "finish_reason": "stop",
                     },
-                }
-            ]
+                    "finish_reason": "stop",
+                },
+            ],
+            "usage": {
+                "prompt_tokens": 100,
+                "completion_tokens": 50,
+                "total_tokens": 150,
+            },
         },
     ]
 
