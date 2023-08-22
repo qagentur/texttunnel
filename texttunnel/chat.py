@@ -219,7 +219,7 @@ class ChatCompletionRequest:
         chat: Chat,
         model: Model,
         function: FunctionDef,
-        params: Parameters = Parameters(),
+        params: Parameters,
     ):
         self.chat = chat
         self.model = model
@@ -327,13 +327,13 @@ def build_binpacked_requests(
     function: FunctionDef,
     system_message: str,
     texts: List[str],
+    params: Parameters,
     max_tokens_per_request: Optional[int] = None,
     max_texts_per_request: Optional[int] = None,
     binpacking_function: Callable = utils.binpack_texts_in_order,
     formatter_function: Callable = utils.format_texts_as_json,
     encoding_name: str = "cl100k_base",
     long_text_handling: str = "error",
-    params: Parameters = Parameters(),
 ) -> List[ChatCompletionRequest]:
     """
     Builds a list of ChatCompletionRequests from a list of texts.
@@ -350,6 +350,7 @@ def build_binpacked_requests(
             See https://platform.openai.com/docs/guides/gpt/function-calling
         system_message: The message to include at the beginning of each chat.
         texts: A list of texts to binpack into chats.
+        params: Object of class Parameters. See models.Parameters for details.
         max_tokens_per_request: The maximum number of tokens allowed in one request.
             Defaults to 90% of the model's context size. The 10% buffer makes
             sure that mistakes in token counting don't cause the request to fail.
@@ -366,7 +367,6 @@ def build_binpacked_requests(
         long_text_handling: Passed to the binpacking function. Defaults to
             "error", which means that an error will be raised if a text is too
             long to fit in a single chat.
-        params: Object of class Parameters. See models.Parameters for details.
 
     Returns:
         A list of ChatCompletionRequests.
@@ -418,9 +418,9 @@ def build_requests(
     function: FunctionDef,
     system_message: str,
     texts: List[str],
+    params: Parameters,
     encoding_name: str = "cl100k_base",
     long_text_handling: str = "error",
-    params: Parameters = Parameters(),
 ) -> List[ChatCompletionRequest]:
     """
     Builds a list of ChatCompletionRequests from a list of texts.
@@ -432,13 +432,13 @@ def build_requests(
             Must be a dictionary that describes a valid JSON schema.
             See https://platform.openai.com/docs/guides/gpt/function-calling
         system_message: The message to include at the beginning of each chat.
+        params: Object of class Parameters. See models.Parameters for details.
         texts: A list of texts to binpack into chats.
         encoding_name: The name of the encoding to use for tokenization.
             Defaults to "cl100k_base".
         long_text_handling: Passed to the binpacking function. Defaults to
             "error", which means that an error will be raised if a text is too
             long to fit in a single chat.
-        params: Object of class Parameters. See models.Parameters for details.
 
     Returns:
         A list of ChatCompletionRequests.
@@ -449,11 +449,11 @@ def build_requests(
         function=function,
         system_message=system_message,
         texts=texts,
+        params=params,
         max_tokens_per_request=None,
         max_texts_per_request=1,
         binpacking_function=utils.binpack_texts_in_order,
         formatter_function=utils.format_texts_with_spaces,
         encoding_name=encoding_name,
         long_text_handling=long_text_handling,
-        params=params,
     )

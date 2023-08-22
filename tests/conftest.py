@@ -154,3 +154,8 @@ def model_fixture():
         tokens_per_minute=90000,
         requests_per_minute=3500,
     )
+
+
+@pytest.fixture
+def params_fixture():
+    return models.Parameters(max_tokens=128)
