@@ -29,7 +29,7 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
-        params=models.Parameters(temperature=0.5),
+        params=models.Parameters(max_tokens=128, temperature=0.5),
     )
 
     assert request.function_call == {"name": "function_name"}

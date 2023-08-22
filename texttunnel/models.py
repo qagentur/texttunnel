@@ -160,7 +160,7 @@ class Parameters:
     https://platform.openai.com/docs/api-reference/chat/create
 
     Args:
-        max_tokens: The maximum number of tokens to generate. Defaults to 128. Note:
+        max_tokens: The maximum number of tokens to generate. Note:
             This can't be greater than the model's context size and should be at least
             long enough to fit the whole expected JSON output. This parameter is used
             to estimate the cost of the request.
@@ -183,7 +183,7 @@ class Parameters:
 
     def __init__(
         self,
-        max_tokens: int = 128,
+        max_tokens: int,
         temperature: float = 0.0,
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
