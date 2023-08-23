@@ -306,6 +306,8 @@ async def aprocess_api_requests(
     )
 
     # Main loop that runs until all tasks are finished
+    last_status_log_timestamp = time.time()
+
     while True:
         # get next request (if one is not already waiting for capacity)
         # check if there are requests that need to be retried
@@ -373,6 +375,22 @@ async def aprocess_api_requests(
         # if all tasks are finished, break
         if status_tracker.num_tasks_in_progress == 0:
             break
+        else:
+            # Log status every 10 seconds
+            if time.time() - last_status_log_timestamp > 10:
+                logging.debug(
+                    "%s tasks in progress. Successful tasks: %s. Failed tasks: %s. "
+                    "Rate limit errors: %s. Other errors: %s. Retry queue length: %s."
+                    "Tasks not yet tried: %s. ",
+                    status_tracker.num_tasks_in_progress,
+                    status_tracker.num_tasks_succeeded,
+                    status_tracker.num_tasks_failed,
+                    status_tracker.num_rate_limit_errors,
+                    status_tracker.num_other_errors,
+                    queue_of_requests_to_retry.qsize(),
+                    len(requests_queue),
+                )
+                last_status_log_timestamp = time.time()
 
         # main loop sleeps briefly so concurrent tasks can run
         await asyncio.sleep(seconds_to_sleep_each_loop)
