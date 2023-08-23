@@ -330,9 +330,6 @@ async def aprocess_api_requests(
                 status_tracker.num_tasks_in_progress += 1
                 logging.debug(f"Reading request {next_request.task_id}: {next_request}")
 
-            else:
-                logging.debug("All tasks have been started.")
-
         # update available capacity
         current_time = time.time()
         seconds_since_update = current_time - last_update_time
