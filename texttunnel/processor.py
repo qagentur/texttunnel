@@ -441,6 +441,7 @@ class APIRequest:
         output_filepath: Path,
         status_tracker: StatusTracker,
         cache: Optional[dc.Cache] = None,
+        timeout_seconds: int = 120,
     ):
         """
         Calls the OpenAI API and appends the request and result to a JSONL file.
@@ -456,13 +457,17 @@ class APIRequest:
             status_tracker: A StatusTracker object that tracks the greater
                 request loop's progress.
             cache: A diskcache.Cache object to store API responses in. Optional.
+            timeout_seconds: The number of seconds to wait for a response before
+                timing out. Defaults to 120 seconds.
         """
 
         error = None
 
         logging.info(f"Starting request #{self.task_id}")
+        timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+
         try:
-            async with aiohttp.ClientSession() as session:
+            async with aiohttp.ClientSession(timeout=timeout) as session:
                 async with session.post(
                     url=request_url, headers=request_header, json=self.request.to_dict()
                 ) as response:
