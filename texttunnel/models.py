@@ -191,23 +191,14 @@ class Parameters:
         if max_tokens < 1:
             raise ValueError("max_tokens must be positive")
 
-        if temperature < 0:
-            raise ValueError("temperature must be positive")
+        if temperature < 0 or temperature > 1:
+            raise ValueError("temperature must be between 0 and 1")
 
-        if temperature > 1:
-            raise ValueError("temperature must be less than or equal to 1")
+        if frequency_penalty < -2 or frequency_penalty > 2:
+            raise ValueError("frequency_penalty must be between -2 and 2")
 
-        if frequency_penalty < -2:
-            raise ValueError("frequency_penalty must be greater than or equal to -2")
-
-        if frequency_penalty > 2:
-            raise ValueError("frequency_penalty must be less than or equal to 2")
-
-        if presence_penalty < -2:
-            raise ValueError("presence_penalty must be greater than or equal to -2")
-
-        if presence_penalty > 2:
-            raise ValueError("presence_penalty must be less than or equal to 2")
+        if presence_penalty < -2 or presence_penalty > 2:
+            raise ValueError("presence_penalty must be between -2 and 2")
 
         self.max_tokens = max_tokens
         self.temperature = temperature
