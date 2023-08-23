@@ -13,3 +13,8 @@ def test_model_errors_on_negative():
             tokens_per_minute=90000,
             requests_per_minute=3500,
         )
+
+
+def test_parameters_invalid_value():
+    with pytest.raises(ValueError):
+        models.Parameters(max_tokens=128, frequency_penalty=3)

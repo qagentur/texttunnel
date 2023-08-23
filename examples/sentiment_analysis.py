@@ -52,9 +52,7 @@ requests = chat.build_binpacked_requests(
     function=function,
     model=models.GPT_3_5_TURBO,
     system_message=system_message,
-    model_params={
-        "temperature": 0.0,
-    },  # no randomness in the model's output
+    params=models.Parameters(max_tokens=50),
 )
 
 # %%

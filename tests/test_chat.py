@@ -1,6 +1,6 @@
 import pytest
 
-from texttunnel import chat
+from texttunnel import chat, models
 
 
 def test_chat_add_message(chat_fixture):
@@ -29,7 +29,7 @@ def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
         model=model_fixture,
         chat=chat_fixture,
         function=function_fixture,
-        model_params={"temperature": 0.5},
+        params=models.Parameters(max_tokens=128, temperature=0.5),
     )
 
     assert request.function_call == {"name": "function_name"}
@@ -47,20 +47,19 @@ def test_chat_completion_request_context_size_exceeded(
             model=model_fixture,
             chat=chat_fixture,
             function=function_fixture,
-            max_output_tokens=4080,  # doesn't fit
+            params=models.Parameters(max_tokens=4080),  # doesn't fit
         )
 
 
 def test_build_binpacked_requests_default_settings(
-    model_fixture,
-    function_fixture,
-    texts_long_fixture,
+    model_fixture, function_fixture, texts_long_fixture, params_fixture
 ):
     requests = chat.build_binpacked_requests(
         system_message="You are a helpful assistant.",
         model=model_fixture,
         function=function_fixture,
         texts=texts_long_fixture,
+        params=params_fixture,
     )
 
     assert all([r.count_total_tokens() <= model_fixture.context_size for r in requests])
@@ -70,6 +69,7 @@ def test_build_binpacked_requests_max_texts_per_request(
     model_fixture,
     function_fixture,
     texts_fixture,
+    params_fixture,
 ):
     requests = chat.build_binpacked_requests(
         system_message="You are a helpful assistant.",
@@ -77,6 +77,7 @@ def test_build_binpacked_requests_max_texts_per_request(
         function=function_fixture,
         texts=texts_fixture,
         max_texts_per_request=2,
+        params=models.Parameters(max_tokens=128),
     )
 
     assert len(requests) == 2
@@ -86,18 +87,22 @@ def test_build_requests(
     model_fixture,
     function_fixture,
     texts_fixture,
+    params_fixture,
 ):
     requests = chat.build_requests(
         system_message="You are a helpful assistant.",
         model=model_fixture,
         function=function_fixture,
         texts=texts_fixture,
+        params=params_fixture,
     )
 
     assert len(requests) == len(texts_fixture)
 
 
-def test_chat_completion_request_context_size_check(chat_fixture, function_fixture):
+def test_chat_completion_request_context_size_check(
+    chat_fixture, function_fixture, params_fixture
+):
     tiny_model = chat.Model(
         name="gpt-3.5-turbo",
         context_size=1,  # only for testing, real context size is 4096
@@ -112,4 +117,5 @@ def test_chat_completion_request_context_size_check(chat_fixture, function_fixtu
             model=tiny_model,
             chat=chat_fixture,
             function=function_fixture,
+            params=params_fixture,
         )

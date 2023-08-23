@@ -150,3 +150,70 @@ GPT_3_5_TURBO_0301 = Model(
     tokens_per_minute=9000,
     requests_per_minute=3500,
 )
+
+
+class Parameters:
+    """
+    Set of parameters that can be passed to an API request.
+
+    The parameters are explained in the OpenAI API documentation:
+    https://platform.openai.com/docs/api-reference/chat/create
+
+    Args:
+        max_tokens: The maximum number of tokens to generate. Note:
+            This can't be greater than the model's context size and should be at least
+            long enough to fit the whole expected JSON output. This parameter is used
+            to estimate the cost of the request.
+        temperature: What sampling temperature to use, between 0 and 2.
+            Higher values like 0.8 will make the output more random, while
+            lower values like 0.2 will make it more focused and deterministic.
+            Defaults to 0.0 because this package is designed for deterministic
+            JSON-schema compliant output.
+        presence_penalty: Number between -2.0 and 2.0. Positive values penalize
+            new tokens based on whether they appear in the text so far,
+            increasing the model's likelihood to talk about new topics. Defaults to 0.0.
+        frequency_penalty: Number between -2.0 and 2.0. Positive values penalize
+            new tokens based on their existing frequency in the text so far,
+            decreasing the model's likelihood to repeat the same line verbatim.
+            Defaults to 0.0.
+
+    Parameters that are not listed here are not supported by this package. The
+    reason is that they're not relevant for the use case of this package.
+    """
+
+    def __init__(
+        self,
+        max_tokens: int,
+        temperature: float = 0.0,
+        presence_penalty: float = 0.0,
+        frequency_penalty: float = 0.0,
+    ):
+        if max_tokens < 1:
+            raise ValueError("max_tokens must be positive")
+
+        if temperature < 0 or temperature > 1:
+            raise ValueError("temperature must be between 0 and 1")
+
+        if frequency_penalty < -2 or frequency_penalty > 2:
+            raise ValueError("frequency_penalty must be between -2 and 2")
+
+        if presence_penalty < -2 or presence_penalty > 2:
+            raise ValueError("presence_penalty must be between -2 and 2")
+
+        self.max_tokens = max_tokens
+        self.temperature = temperature
+        self.presence_penalty = presence_penalty
+        self.frequency_penalty = frequency_penalty
+
+    def to_dict(self):
+        """
+        Returns:
+            A dictionary representation of the parameters.
+        """
+
+        return {
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "presence_penalty": self.presence_penalty,
+            "frequency_penalty": self.frequency_penalty,
+        }
