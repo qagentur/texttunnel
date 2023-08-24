@@ -514,10 +514,9 @@ class APIRequest:
             self.result.append(error)
             if self.attempts_left:
                 logging.debug(
-                    "Added request %s to retry queue."
-                    "Queue length: %s.",
+                    "Added request %s to retry queue." "Queue length: %s.",
                     self.task_id,
-                    retry_queue.qsize()
+                    retry_queue.qsize(),
                 )
                 retry_queue.put_nowait(self)
             else:
