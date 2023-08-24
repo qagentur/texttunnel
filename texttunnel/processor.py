@@ -277,7 +277,7 @@ async def aprocess_api_requests(
     request_header = {"Authorization": f"Bearer {api_key}"}
 
     # initialize trackers
-    queue_of_requests_to_retry = asyncio.Queue()
+    retry_queue = asyncio.Queue()
     task_id_generator = (
         task_id_generator_function()
     )  # generates integer IDs of 1, 2, 3, ...
@@ -312,8 +312,8 @@ async def aprocess_api_requests(
         # get next request (if one is not already waiting for capacity)
         # check if there are requests that need to be retried
         if next_request is None:
-            if not queue_of_requests_to_retry.empty():
-                next_request = queue_of_requests_to_retry.get_nowait()
+            if not retry_queue.empty():
+                next_request = retry_queue.get_nowait()
                 logging.debug(
                     f"Retrying request {next_request.task_id}: {next_request}"
                 )
@@ -364,7 +364,7 @@ async def aprocess_api_requests(
                     next_request.call_api(
                         request_url=request_url,
                         request_header=request_header,
-                        retry_queue=queue_of_requests_to_retry,
+                        retry_queue=retry_queue,
                         output_filepath=output_filepath,
                         status_tracker=status_tracker,
                         cache=cache,
@@ -387,7 +387,7 @@ async def aprocess_api_requests(
                     status_tracker.num_tasks_failed,
                     status_tracker.num_rate_limit_errors,
                     status_tracker.num_other_errors,
-                    queue_of_requests_to_retry.qsize(),
+                    retry_queue.qsize(),
                     len(requests_queue),
                 )
                 last_status_log_timestamp = time.time()
@@ -513,6 +513,11 @@ class APIRequest:
         if error:
             self.result.append(error)
             if self.attempts_left:
+                logging.debug(
+                    "Added request %s to retry queue." "Queue length: %s.",
+                    self.task_id,
+                    retry_queue.qsize(),
+                )
                 retry_queue.put_nowait(self)
             else:
                 logging.error(
