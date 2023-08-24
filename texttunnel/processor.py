@@ -380,7 +380,7 @@ async def aprocess_api_requests(
             if time.time() - last_status_log_timestamp > 10:
                 logging.debug(
                     "%s tasks in progress. Successful tasks: %s. Failed tasks: %s. "
-                    "Rate limit errors: %s. Other errors: %s. Retry queue length: %s."
+                    "Rate limit errors: %s. Other errors: %s. Retry queue length: %s ."
                     "Tasks not yet tried: %s. ",
                     status_tracker.num_tasks_in_progress,
                     status_tracker.num_tasks_succeeded,
@@ -513,12 +513,12 @@ class APIRequest:
         if error:
             self.result.append(error)
             if self.attempts_left:
+                retry_queue.put_nowait(self)
                 logging.debug(
-                    "Added request %s to retry queue." "Queue length: %s.",
+                    "Added request #%s to retry queue. Queue length: %s.",
                     self.task_id,
                     retry_queue.qsize(),
                 )
-                retry_queue.put_nowait(self)
             else:
                 logging.error(
                     f"Request {self.request.to_dict()} failed after all attempts. Saving errors: {self.result}"
