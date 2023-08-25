@@ -285,7 +285,7 @@ class ChatCompletionRequest:
         This includes the chat messages and the function call.
         """
         chat_tokens = self.chat.count_tokens(model=self.model.name)
-        function_tokens = utils.num_tokens_from_text(json.dumps(self.function_call))
+        function_tokens = utils.num_tokens_from_text(json.dumps(self.functions[0]))
 
         return chat_tokens + function_tokens
 
@@ -310,6 +310,8 @@ class ChatCompletionRequest:
         """
         Estimates the cost of the request in USD. Assumes that the model will
         return the maximum number of tokens allowed by the max_tokens parameter.
+        The estimate is the upper bound on the cost, since the model may return
+        fewer tokens than the maximum allowed.
         """
 
         input_cost_usd = (
