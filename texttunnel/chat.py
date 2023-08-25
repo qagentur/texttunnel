@@ -245,16 +245,16 @@ class ChatCompletionRequest:
 
         # Check that the inputs fit into the context size and leaves
         # enough space for the output
-        num_input_tokens = self.count_input_tokens()
-        num_output_tokens = self.count_output_tokens()
-        num_total_tokens = num_input_tokens + num_output_tokens
+        num_prompt_tokens = self.count_prompt_tokens()
+        num_completion_tokens = self.count_completion_tokens()
+        num_total_tokens = num_prompt_tokens + num_completion_tokens
 
         if num_total_tokens > self.model.context_size:
             raise ValueError(
                 f"""
                 Total number of tokens ({num_total_tokens}) exceeds the context
                 size of the model ({self.model.context_size}). Input tokens:
-                {num_input_tokens}. Output tokens: {num_output_tokens}.
+                {num_prompt_tokens}. Output tokens: {num_completion_tokens}.
                 Context size: {self.model.context_size}.
                 """
             )
@@ -279,17 +279,17 @@ class ChatCompletionRequest:
         """
         return utils.hash_dict(self.to_dict())
 
-    def count_input_tokens(self) -> int:
+    def count_prompt_tokens(self) -> int:
         """
         Counts the number of tokens that will be used as input to the model.
         This includes the chat messages and the function call.
         """
         chat_tokens = self.chat.count_tokens(model=self.model.name)
-        function_tokens = utils.num_tokens_from_text(json.dumps(self.function_call))
+        function_tokens = utils.num_tokens_from_text(json.dumps(self.functions[0]))
 
         return chat_tokens + function_tokens
 
-    def count_output_tokens(self) -> int:
+    def count_completion_tokens(self) -> int:
         """
         Counts the number of tokens that will be used as output of the model.
         Assumes that the model will return the maximum number of tokens allowed
@@ -304,19 +304,21 @@ class ChatCompletionRequest:
         of the model. Assumes that the model will return the maximum number of
         tokens allowed by the max_tokens parameter.
         """
-        return self.count_input_tokens() + self.count_output_tokens()
+        return self.count_prompt_tokens() + self.count_completion_tokens()
 
     def estimate_cost_usd(self) -> float:
         """
         Estimates the cost of the request in USD. Assumes that the model will
         return the maximum number of tokens allowed by the max_tokens parameter.
+        The estimate is the upper bound on the cost, since the model may return
+        fewer tokens than the maximum allowed.
         """
 
         input_cost_usd = (
-            self.count_input_tokens() * self.model.input_token_price_per_1k / 1000
+            self.count_prompt_tokens() * self.model.input_token_price_per_1k / 1000
         )
         output_cost_usd = (
-            self.count_output_tokens() * self.model.output_token_price_per_1k / 1000
+            self.count_completion_tokens() * self.model.output_token_price_per_1k / 1000
         )
 
         return input_cost_usd + output_cost_usd
