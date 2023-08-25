@@ -52,8 +52,8 @@
 </ul>
 </li>
 <li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest</span></code></a><ul>
-<li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.count_input_tokens"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.count_input_tokens()</span></code></a></li>
-<li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.count_output_tokens"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.count_output_tokens()</span></code></a></li>
+<li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.count_completion_tokens"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.count_completion_tokens()</span></code></a></li>
+<li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.count_prompt_tokens"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.count_prompt_tokens()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.count_total_tokens"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.count_total_tokens()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.estimate_cost_usd"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.estimate_cost_usd()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.chat.ChatCompletionRequest.get_hash"><code class="docutils literal notranslate"><span class="pre">ChatCompletionRequest.get_hash()</span></code></a></li>
@@ -236,18 +236,18 @@ See <a class="reference external" href="https://platform.openai.com/docs/guides/
 </dd>
 </dl>
 <dl class="py method">
-<dt class="sig sig-object py" id="texttunnel.chat.ChatCompletionRequest.count_input_tokens">
-<span class="sig-name descname"><span class="pre">count_input_tokens</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#texttunnel.chat.ChatCompletionRequest.count_input_tokens" title="Permalink to this definition"></a></dt>
-<dd><p>Counts the number of tokens that will be used as input to the model.
-This includes the chat messages and the function call.</p>
-</dd></dl>
-
-<dl class="py method">
-<dt class="sig sig-object py" id="texttunnel.chat.ChatCompletionRequest.count_output_tokens">
-<span class="sig-name descname"><span class="pre">count_output_tokens</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#texttunnel.chat.ChatCompletionRequest.count_output_tokens" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="texttunnel.chat.ChatCompletionRequest.count_completion_tokens">
+<span class="sig-name descname"><span class="pre">count_completion_tokens</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#texttunnel.chat.ChatCompletionRequest.count_completion_tokens" title="Permalink to this definition"></a></dt>
 <dd><p>Counts the number of tokens that will be used as output of the model.
 Assumes that the model will return the maximum number of tokens allowed
 by the max_tokens parameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="texttunnel.chat.ChatCompletionRequest.count_prompt_tokens">
+<span class="sig-name descname"><span class="pre">count_prompt_tokens</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#texttunnel.chat.ChatCompletionRequest.count_prompt_tokens" title="Permalink to this definition"></a></dt>
+<dd><p>Counts the number of tokens that will be used as input to the model.
+This includes the chat messages and the function call.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -262,7 +262,9 @@ tokens allowed by the max_tokens parameter.</p>
 <dt class="sig sig-object py" id="texttunnel.chat.ChatCompletionRequest.estimate_cost_usd">
 <span class="sig-name descname"><span class="pre">estimate_cost_usd</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#texttunnel.chat.ChatCompletionRequest.estimate_cost_usd" title="Permalink to this definition"></a></dt>
 <dd><p>Estimates the cost of the request in USD. Assumes that the model will
-return the maximum number of tokens allowed by the max_tokens parameter.</p>
+return the maximum number of tokens allowed by the max_tokens parameter.
+The estimate is the upper bound on the cost, since the model may return
+fewer tokens than the maximum allowed.</p>
 </dd></dl>
 
 <dl class="py method">
