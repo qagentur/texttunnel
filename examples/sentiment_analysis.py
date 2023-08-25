@@ -9,7 +9,7 @@ from texttunnel import chat, models, processor
 # When this script is run again, the results will be loaded from the cache
 cache = Cache("mycache")
 
-logging.basicConfig(level=20)  # log INFO and above
+logging.basicConfig(level=logging.INFO)
 
 # Look up information on models, pricing and rate limits:
 # https://platform.openai.com/docs/models/overview
@@ -47,10 +47,12 @@ function = {
 
 system_message = "You are a sentiment analysis expert. Analyze the following statements as positive or negative."
 
+model = models.GPT_3_5_TURBO
+
 requests = chat.build_binpacked_requests(
     texts=input_texts,
     function=function,
-    model=models.GPT_3_5_TURBO,
+    model=model,
     system_message=system_message,
     params=models.Parameters(max_tokens=50),
 )
@@ -80,12 +82,12 @@ actual_cost_usd = sum(
     [
         processor.usage_to_cost(
             usage=processor.parse_token_usage(response=response),
-            model=models.GPT_3_5_TURBO,
+            model=model,
         )
         for response in responses
     ]
 )
 
-print(f"Actual cost: ${actual_cost_usd:.4f}")  # output token limit wasn't fully used
+print(f"Actual cost: ${actual_cost_usd:.4f}")
 
 # %%
