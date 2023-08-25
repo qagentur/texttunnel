@@ -1,5 +1,9 @@
 # texttunnel: Efficient text processing with GPT-3.5 and GPT-4
 
+<div align="center">
+  <img src="https://github.com/qagentur/texttunnel/assets/25177095/411ad918-d054-4d19-aef5-1dba9136db33" width="65%" />
+</div>
+
 This package offers a straightforward interface for integrating the GPT-3.5 and GPT-4 models into your natural language processing pipelines. It is optimally designed for the following scenario:
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
