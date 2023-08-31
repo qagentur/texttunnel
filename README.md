@@ -8,7 +8,7 @@ This package offers a straightforward interface for integrating the GPT-3.5 and 
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
 
-🚧 Status: This package is in beta. Don't use it in production. 🚧
+🚧 When updating the package please check for possible breaking changes. 🚧
 
 Features:
 
@@ -23,17 +23,16 @@ Features:
 
 ## Installation
 
-The package is not yet available on PyPI. To install it, clone the repository and run `poetry install` or install it directly from GitHub using:
-
+The package is available on [PyPI](https://pypi.org/project/texttunnel/). To install it, run:
+  
 ```bash
-pip install git+https://github.com/qagentur/texttunnel.git
+pip install texttunnel
 ```
 
-or adding this line to your pyproject.toml, if you're using poetry:
+or via poetry:
 
-```toml
-[tool.poetry.dependencies]
-texttunnel = { git = "https://github.com/qagentur/texttunnel.git", branch = "main" }
+```bash
+poetry add texttunnel
 ```
 
 ## Usage
