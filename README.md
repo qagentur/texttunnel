@@ -29,11 +29,10 @@ The package is available on [PyPI](https://pypi.org/project/texttunnel/). To ins
 pip install texttunnel
 ```
 
-or adding this line to your pyproject.toml, if you're using poetry:
+or via poetry:
 
-```toml
-[tool.poetry.dependencies]
-texttunnel = { git = "https://github.com/qagentur/texttunnel.git", branch = "main" }
+```bash
+poetry add texttunnel
 ```
 
 ## Usage
