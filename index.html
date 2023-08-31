@@ -42,7 +42,7 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to texttunnel’s documentation!</a><ul>
+<li><a class="reference internal" href="#">Welcome to texttunnel’s documentation!</a></li>
 <li><a class="reference internal" href="#modules">Modules</a><ul>
 <li><a class="reference internal" href="#module-texttunnel.chat">Chat Module</a><ul>
 <li><a class="reference internal" href="#texttunnel.chat.Chat"><code class="docutils literal notranslate"><span class="pre">Chat</span></code></a><ul>
@@ -116,8 +116,6 @@
 </li>
 </ul>
 </li>
-</ul>
-</li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 </div>
@@ -147,7 +145,7 @@
              
   <section id="welcome-to-texttunnel-s-documentation">
 <h1>Welcome to texttunnel’s documentation!<a class="headerlink" href="#welcome-to-texttunnel-s-documentation" title="Permalink to this heading"></a></h1>
-<p>his package offers a straightforward interface for integrating the GPT-3.5 and GPT-4 models into your natural language processing pipelines. It is optimally designed for the following scenario:</p>
+<p>This package offers a straightforward interface for integrating the GPT-3.5 and GPT-4 models into your natural language processing pipelines. It is optimally designed for the following scenario:</p>
 <p>Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.</p>
 <p>Features:</p>
 <ul class="simple">
@@ -164,10 +162,11 @@
 <a class="reference external" href="https://github.com/qagentur/texttunnel/tree/main/examples">https://github.com/qagentur/texttunnel/tree/main/examples</a></p>
 <div class="toctree-wrapper compound">
 </div>
+</section>
 <section id="modules">
-<h2>Modules<a class="headerlink" href="#modules" title="Permalink to this heading"></a></h2>
+<h1>Modules<a class="headerlink" href="#modules" title="Permalink to this heading"></a></h1>
 <section id="module-texttunnel.chat">
-<span id="chat-module"></span><h3>Chat Module<a class="headerlink" href="#module-texttunnel.chat" title="Permalink to this heading"></a></h3>
+<span id="chat-module"></span><h2>Chat Module<a class="headerlink" href="#module-texttunnel.chat" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="texttunnel.chat.Chat">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">texttunnel.chat.</span></span><span class="sig-name descname"><span class="pre">Chat</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">messages</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#texttunnel.chat.ChatMessage" title="texttunnel.chat.ChatMessage"><span class="pre">ChatMessage</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#texttunnel.chat.Chat" title="Permalink to this definition"></a></dt>
@@ -387,7 +386,7 @@ Note that the parameter properties are not validated to allow for custom propert
 
 </section>
 <section id="module-texttunnel.models">
-<span id="models-module"></span><h3>Models Module<a class="headerlink" href="#module-texttunnel.models" title="Permalink to this heading"></a></h3>
+<span id="models-module"></span><h2>Models Module<a class="headerlink" href="#module-texttunnel.models" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="texttunnel.models.Model">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">texttunnel.models.</span></span><span class="sig-name descname"><span class="pre">Model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">context_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_token_price_per_1k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_token_price_per_1k</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tokens_per_minute</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">requests_per_minute</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#texttunnel.models.Model" title="Permalink to this definition"></a></dt>
@@ -512,7 +511,7 @@ reason is that they’re not relevant for the use case of this package.</p>
 
 </section>
 <section id="module-texttunnel.processor">
-<span id="processor-module"></span><h3>Processor Module<a class="headerlink" href="#module-texttunnel.processor" title="Permalink to this heading"></a></h3>
+<span id="processor-module"></span><h2>Processor Module<a class="headerlink" href="#module-texttunnel.processor" title="Permalink to this heading"></a></h2>
 <dl class="py class">
 <dt class="sig sig-object py" id="texttunnel.processor.APIRequest">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">texttunnel.processor.</span></span><span class="sig-name descname"><span class="pre">APIRequest</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task_id:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">request:</span> <span class="pre">~texttunnel.chat.ChatCompletionRequest</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">token_consumption:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attempts_left:</span> <span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result:</span> <span class="pre">list</span> <span class="pre">=</span> <span class="pre">&lt;factory&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#texttunnel.processor.APIRequest" title="Permalink to this definition"></a></dt>
@@ -726,7 +725,7 @@ Create a cache object with <cite>diskcache.Cache(“path/to/cache”)</cite></p>
 
 </section>
 <section id="module-texttunnel.utils">
-<span id="utils-module"></span><h3>Utils Module<a class="headerlink" href="#module-texttunnel.utils" title="Permalink to this heading"></a></h3>
+<span id="utils-module"></span><h2>Utils Module<a class="headerlink" href="#module-texttunnel.utils" title="Permalink to this heading"></a></h2>
 <dl class="py function">
 <dt class="sig sig-object py" id="texttunnel.utils.binpack_texts_in_order">
 <span class="sig-prename descclassname"><span class="pre">texttunnel.utils.</span></span><span class="sig-name descname"><span class="pre">binpack_texts_in_order</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">texts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">formatter_function</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_tokens_per_bin</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_texts_per_bin</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">encoding_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'cl100k_base'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">long_text_handling</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'error'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#texttunnel.utils.binpack_texts_in_order" title="Permalink to this definition"></a></dt>
@@ -833,7 +832,6 @@ and handles edge cases like newlines in the text.</p>
 </dl>
 </dd></dl>
 
-</section>
 </section>
 </section>
 <section id="indices-and-tables">
