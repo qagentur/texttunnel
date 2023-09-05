@@ -24,6 +24,21 @@ def test_chat(chat_fixture):
     assert chat.messages[0].role == "system"
 
 
+def test_chat_stable_model_mapping(chat_fixture):
+    # Should raise a warning when the model is mapped to a stable model
+    with pytest.warns(UserWarning):
+        chat_fixture.count_tokens(
+            model="gpt-3.5-turbo-16k", show_changing_model_warning=True
+        )
+
+    # Try again, but this time with the warning suppressed
+    result = chat_fixture.count_tokens(
+        model="gpt-3.5-turbo-16k", show_changing_model_warning=True
+    )
+
+    assert isinstance(result, int)
+
+
 def test_chat_completion_request(model_fixture, chat_fixture, function_fixture):
     request = chat.ChatCompletionRequest(
         model=model_fixture,

@@ -25,9 +25,10 @@
 
 import json
 from typing import Any, Callable, Dict, List, Optional
+from warnings import warn
 
-from jsonschema import Draft7Validator, exceptions
 import tiktoken
+from jsonschema import Draft7Validator, exceptions
 
 from texttunnel import utils
 from texttunnel.models import Model, Parameters
@@ -155,22 +156,27 @@ class Chat:
             encoding = tiktoken.encoding_for_model(model)
         except KeyError:
             if show_changing_model_warning:
-                print("Warning: model not found. Using cl100k_base encoding.")
+                warn(
+                    f"Warning: model {model} not found. Using cl100k_base encoding.",
+                    UserWarning,
+                )
             encoding = tiktoken.get_encoding("cl100k_base")
 
-        if model == "gpt-3.5-turbo":
-            if show_changing_model_warning:
-                print(
-                    "Warning: gpt-3.5-turbo may update over time. Returning num tokens assuming gpt-3.5-turbo-0613."
-                )
-            model = "gpt-3.5-turbo-0613"
+        # Map models that are not versioned with a date to a stable version
+        stable_model_mapping = {
+            "gpt-3.5-turbo": "gpt-3.5-turbo-0613",
+            "gpt-3.5-turbo-16k": "gpt-3.5-turbo-16k-0613",
+            "gpt-4": "gpt-4-0613",
+            "gpt-4-32k": "gpt-4-32k-0613",
+        }
 
-        if model == "gpt-4":
+        if model in stable_model_mapping:
             if show_changing_model_warning:
-                print(
-                    "Warning: gpt-4 may update over time. Returning num tokens assuming gpt-4-0613."
+                warn(
+                    f"Warning: {model} may update over time. Returning num tokens assuming {stable_model_mapping[model]}.",
+                    UserWarning,
                 )
-            model = "gpt-4-0613"
+            model = stable_model_mapping[model]
 
         if model in {
             "gpt-3.5-turbo-0613",
