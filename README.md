@@ -35,6 +35,8 @@ or via poetry:
 poetry add texttunnel
 ```
 
+**Note**: If you want to use caching, you need to install the aiohttp_client_cache extras. Please refer to the [aiohttp_client_cache](https://github.com/requests-cache/aiohttp-client-cache#quickstart) documentation for more information.
+
 ## Usage
 
 Check the docs: [https://qagentur.github.io/texttunnel/](https://qagentur.github.io/texttunnel/)
