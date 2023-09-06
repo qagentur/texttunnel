@@ -36,9 +36,9 @@ from pathlib import Path  # for saving results to a file
 from typing import Any, Dict, Generator, List, Optional, Union  # for type hints
 
 import aiohttp
+import aiohttp_client_cache
 
 # for storing API inputs, outputs, and metadata
-import diskcache as dc  # for caching API responses
 import jsonschema  # for validating API responses
 
 from texttunnel.chat import ChatCompletionRequest
@@ -90,7 +90,7 @@ def process_api_requests(
     max_attempts: int = 10,
     rate_limit_headroom_factor: float = 0.75,
     api_key: Optional[str] = None,
-    cache: Optional[dc.core.Cache] = None,
+    cache: Optional[aiohttp_client_cache.CacheBackend] = None,
 ) -> List[Response]:
     """
 
@@ -137,14 +137,17 @@ def process_api_requests(
             stays under the limit if omitted, will default to 0.75
             (75% of the rate limit)
         api_key: str, optional
-            API key to use
-            if omitted, the function will attempt to read it from an environment
-            variable {os.getenv("OPENAI_API_KEY")}
-            If all requests are cached, the API key is not required.
-        cache: diskcache.Cache, optional
+            API key to use. If omitted, the function will attempt to read it
+            from an environment variable OPENAI_API_KEY. If that fails, an error
+            will be raised, unless all requests are cached.
+        cache: aiohttp_client_cache.CacheBackend, optional
             If provided, API responses will be served from the cache if available.
             New responses will be saved to the cache.
-            Create a cache object with `diskcache.Cache("path/to/cache")`
+            Check the aiohttp_client_cache documentation for details on the
+            available cache backends and how to configure them. See
+            https://aiohttp-client-cache.readthedocs.io/en/stable/backends.html.
+            Each backend requires different dependencies. For example, the SQLite
+            backend requires the package "aiosqlite" to be installed.
 
     Returns:
         List[Dict[str, Any]]: list where each element consists of two dictionaries:
@@ -168,6 +171,18 @@ def process_api_requests(
         import nest_asyncio
 
         nest_asyncio.apply()
+
+    # Check that the cache is configured correctly
+    if cache is not None:
+        if "POST" not in cache.allowed_methods:
+            raise ValueError(
+                'cache.allowed_methods must include "POST". Add the argument "allowed_methods=["POST"]" to the cache constructor.'
+            )
+
+        if cache.include_headers:
+            raise ValueError(
+                "cache.include_headers must be False to protect the API key."
+            )
 
     # Handle save file
     output_filepath = prepare_output_filepath(output_filepath, keep_file)
@@ -217,25 +232,33 @@ async def aprocess_api_requests(
     max_attempts: int,
     rate_limit_headroom_factor: float,
     api_key: Optional[str] = None,
-    cache: Optional[dc.Cache] = None,
+    cache: Optional[aiohttp_client_cache.CacheBackend] = None,
 ):
     """Processes API requests in parallel, throttling to stay under rate limits."""
 
-    # Check if requests can be served from the cache
-    # Build a queue of requests that need to be sent to the API
+    request_url = "https://api.openai.com/v1/chat/completions"
+
     if cache is not None:
+        # Check if requests can be served from the cache
+        # Build a queue of requests that need to be sent to the API
+        # Handling cached requests separately allows us to avoid allocating
+        # rate limit capacity to them and provide clearer logging.
         logging.debug("Checking cache for requests.")
         requests_queue = []
         for request in requests:
-            cache_key = request.get_hash()
+            # Check if the request is in the cache
+            cache_response_tuple = await cache.request(
+                method="POST", url=request_url, json=request.to_dict()
+            )
 
-            if cache_key in cache:
-                response = cache[cache_key]
+            cached_response = cache_response_tuple[0]
 
+            if cached_response is None:
+                requests_queue.append(request)
+            else:
+                response = await cached_response.json()
                 data = [request.to_dict(), response]
                 append_to_jsonl(data, output_filepath)
-            else:
-                requests_queue.append(request)
 
         request_cache_hits = len(requests) - len(requests_queue)
         logging.info(
@@ -245,10 +268,10 @@ async def aprocess_api_requests(
         logging.debug("No cache provided.")
         requests_queue = requests.copy()
 
+    logging.debug("Cache check complete.")
+
     if len(requests_queue) == 0:
         return
-
-    logging.debug("Cache check complete.")
 
     # Check that all requests use the same model. Otherwise, we can't set
     # a single rate limit for all requests.
@@ -273,7 +296,6 @@ async def aprocess_api_requests(
                 "api_key must be provided or set as an environment variable OPENAI_API_KEY."
             )
 
-    request_url = "https://api.openai.com/v1/chat/completions"
     request_header = {"Authorization": f"Bearer {api_key}"}
 
     # initialize trackers
@@ -458,7 +480,7 @@ class APIRequest:
         retry_queue: asyncio.Queue,
         output_filepath: Path,
         status_tracker: StatusTracker,
-        cache: Optional[dc.Cache] = None,
+        cache: Optional[aiohttp_client_cache.CacheBackend] = None,
         timeout_seconds: int = 120,
     ):
         """
@@ -474,7 +496,8 @@ class APIRequest:
             output_filepath: The path to the file where the results will be saved.
             status_tracker: A StatusTracker object that tracks the greater
                 request loop's progress.
-            cache: A diskcache.Cache object to store API responses in. Optional.
+            cache: A aiohttp_client_cache.CacheBackend object that stores API
+                responses. If provided, the response will be stored in the cache.
             timeout_seconds: The number of seconds to wait for a response before
                 timing out. Defaults to 120 seconds.
         """
@@ -485,11 +508,24 @@ class APIRequest:
         timeout = aiohttp.ClientTimeout(total=timeout_seconds)
 
         try:
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            # Choose the session class based on whether cache is provided
+            session_class = (
+                aiohttp.ClientSession
+                if cache is None
+                else aiohttp_client_cache.CachedSession
+            )
+            session_kwargs = (
+                {"timeout": timeout}
+                if cache is None
+                else {"cache": cache, "timeout": timeout}
+            )
+
+            async with session_class(**session_kwargs) as session:
                 async with session.post(
                     url=request_url, headers=request_header, json=self.request.to_dict()
                 ) as response:
                     response = await response.json()
+
             if "error" in response:
                 logging.warning(
                     f"Request {self.task_id} failed with error {response['error']}"
@@ -533,12 +569,6 @@ class APIRequest:
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
             logging.debug(f"Request #{self.task_id} saved to {output_filepath}")
-
-            # Store successful response in cache
-            if cache is not None:
-                cache_key = self.request.get_hash()
-                cache[cache_key] = response
-                logging.debug(f"Request #{self.task_id} cached")
 
 
 # functions
