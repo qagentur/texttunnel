@@ -18,7 +18,7 @@ Features:
 - 🚀 Efficient Batching: Supports bulk processing by packing multiple input texts into a single request for the OpenAI's API.
 - 🚦 Asynchronous Requests: Facilitates speedy data processing by sending simultaneous requests to OpenAI's API, while maintaining API rate limits.
 - 💰 Cost Estimation: Aims for transparency in API utilization cost by providing cost estimates before sending API requests.
-- 💾 Disk Caching: Uses [diskcache](https://github.com/grantjenks/python-diskcache) to avoid redundant requests and reduce cost by caching previous requests.
+- 💾 Caching: Uses [aiohttp_client_cache](https://github.com/requests-cache/aiohttp-client-cache) to avoid redundant requests and reduce cost by caching previous requests. Supports SQLite, MongoDB, DynamoDB and Redis cache backends.
 - 📝 Request Logging: Implements Python's native [logging](https://docs.python.org/3/library/logging.html) framework for tracking and logging all API requests.
 
 ## Installation
