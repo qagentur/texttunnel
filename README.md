@@ -8,7 +8,7 @@ This package offers a straightforward interface for integrating the GPT-3.5 and 
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
 
-🚧 When updating the package please check for possible breaking changes. 🚧
+🚧 When updating the package please check the [changelog](/CHANGELOG.md) for breaking changes. 🚧
 
 Features:
 
