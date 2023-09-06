@@ -1,20 +1,16 @@
 # %%
 import logging
-
-from diskcache import Cache
+from aiohttp_client_cache import SQLiteBackend
 
 from texttunnel import chat, models, processor
 
-# Create a cache to store the results of the requests
+# Create a SQLite cache to store the results of the requests
 # When this script is run again, the results will be loaded from the cache
-cache = Cache("mycache")
+# Requires the additional package aiosqlite (pip install aiosqlite)
+cache = SQLiteBackend(cache_name="openai_cache.sqlite", allowed_methods=["POST"])
+
 
 logging.basicConfig(level=logging.INFO)
-
-# Look up information on models, pricing and rate limits:
-# https://platform.openai.com/docs/models/overview
-# https://openai.com/pricing
-# https://platform.openai.com/account/rate-limits
 
 # Texts that we'd like to know the sentiment of
 input_texts = [
@@ -66,10 +62,9 @@ print(f"Estimated cost: ${estimated_cost_usd:.4f}")
 # Requires that the OPENAI_API_KEY environment variable is set.
 responses = processor.process_api_requests(
     requests=requests,
-    cache=cache,  # use diskcache to cache API responses
+    cache=cache,
 )
 
-cache.close()
 
 # %%
 results = [processor.parse_arguments(response=response) for response in responses]
