@@ -1,7 +1,5 @@
-# Cache files from diskcache
-*.db
-*.db-shm
-*.db-wal
+# Cache files from cache backends
+*.sqlite
 
 # macOS
 .DS_Store
