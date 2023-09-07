@@ -8,7 +8,7 @@ This package offers a straightforward interface for integrating the GPT-3.5 and 
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
 
-🚧 When updating the package please check for possible breaking changes. 🚧
+🚧 When updating the package please check the [changelog](/CHANGELOG.md) for breaking changes. 🚧
 
 Features:
 
@@ -18,7 +18,7 @@ Features:
 - 🚀 Efficient Batching: Supports bulk processing by packing multiple input texts into a single request for the OpenAI's API.
 - 🚦 Asynchronous Requests: Facilitates speedy data processing by sending simultaneous requests to OpenAI's API, while maintaining API rate limits.
 - 💰 Cost Estimation: Aims for transparency in API utilization cost by providing cost estimates before sending API requests.
-- 💾 Disk Caching: Uses [diskcache](https://github.com/grantjenks/python-diskcache) to avoid redundant requests and reduce cost by caching previous requests.
+- 💾 Caching: Uses [aiohttp_client_cache](https://github.com/requests-cache/aiohttp-client-cache) to avoid redundant requests and reduce cost by caching previous requests. Supports SQLite, MongoDB, DynamoDB and Redis cache backends.
 - 📝 Request Logging: Implements Python's native [logging](https://docs.python.org/3/library/logging.html) framework for tracking and logging all API requests.
 
 ## Installation
@@ -34,6 +34,8 @@ or via poetry:
 ```bash
 poetry add texttunnel
 ```
+
+**Note**: If you want to use caching, you need to install the aiohttp_client_cache extras. Please refer to the [aiohttp_client_cache](https://github.com/requests-cache/aiohttp-client-cache#quickstart) documentation for more information.
 
 ## Usage
 

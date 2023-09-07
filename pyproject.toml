@@ -6,7 +6,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "texttunnel"
-version = "0.2.3"
+version = "0.3.0"
 description = "Efficient text processing with the OpenAI API"
 authors = ["Q Agentur für Forschung GmbH <info@teamq.de>"]
 readme = "README.md"
@@ -14,11 +14,11 @@ homepage = "https://github.com/qagentur/texttunnel"
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = ">=3.9"
+python = ">=3.9 <4.0"
 aiohttp = ">=3.8.3 <4.0.0"
 jsonschema = ">=4.18.0 <5.0.0"
 tiktoken = ">=0.3.1 <1.0.0"
-diskcache = ">=5.2.1 <6.0.0"
+aiohttp-client-cache = ">=0.8.0 <1.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.7.0"
@@ -26,3 +26,5 @@ pytest = "^7.4.0"
 ipykernel = "^6.25.0"
 sphinx = "6.2.1"
 sphinx-rtd-theme = "^1.2.2"
+aioboto3 = "^11.3.0"
+aiosqlite = "^0.19.0"
