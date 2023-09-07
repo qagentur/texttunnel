@@ -115,6 +115,10 @@ def process_api_requests(
     event loop. Also sorts the output by request ID, so that the results are in
     the same order as the requests.
 
+    Note that if you're running this function in a Jupyter notebook, the function
+    will automatically import nest_asyncio and call nest_asyncio.apply() to allow
+    asyncio to run in the notebook environment. This does not happen in a script.
+
     Args:
         requests: List[ChatCompletionRequest]
             The requests to process, see ChatCompletionRequest class for details
@@ -168,9 +172,14 @@ def process_api_requests(
 
     # Handle Notebook environment
     if "ipykernel" in sys.modules:
+        # nest_asyncio is a workaround for running asyncio in Jupyter notebooks
+        # it's always available when ipykernel is available
         import nest_asyncio
 
         nest_asyncio.apply()
+        logging.info(
+            "Running in Jupyter notebook environment. Activated nest_asyncio to allow asyncio to run."
+        )
 
     # Check that the cache is configured correctly
     if cache is not None:
