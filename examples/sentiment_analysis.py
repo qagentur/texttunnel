@@ -1,3 +1,6 @@
+# Example of using the texttunnel package to perform sentiment analysis
+# Features binpacking to reduce the number of API calls
+
 # %%
 import logging
 from aiohttp_client_cache import SQLiteBackend
