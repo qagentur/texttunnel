@@ -93,31 +93,17 @@ def process_api_requests(
     cache: Optional[aiohttp_client_cache.CacheBackend] = None,
 ) -> List[Response]:
     """
-
-    Using the OpenAI API to process lots of text quickly takes some care.
-    If you trickle in a million API requests one by one, they'll take days to complete.
-    If you flood a million API requests in parallel, they'll exceed the rate limits
-    and fail with errors. To maximize throughput, parallel requests need to be
-    throttled to stay under rate limits.
-
-    The following functions parallelizes requests to the OpenAI API while
-    throttling to stay under rate limits.
-
-    Features:
-    - Streams requests from file, to avoid running out of memory for giant jobs
-    - Makes requests concurrently, to maximize throughput
-    - Throttles request and token usage, to stay under rate limits
-    - Retries failed requests up to {max_attempts} times, to avoid missing data
-    - Logs errors, to diagnose problems with requests
-
-    Processes API requests in parallel, throttling to stay under rate limits.
-    This function is a wrapper for aprocess_api_requests() that runs it in an asyncio
-    event loop. Also sorts the output by request ID, so that the results are in
-    the same order as the requests.
-
+    Make requests to OpenAI. This function is a wrapper around
+    aprocess_api_requests() that runs it in a synchronous loop, saving you the
+    trouble of having to use asyncio directly.
+    
     Note that if you're running this function in a Jupyter notebook, the function
     will automatically import nest_asyncio and call nest_asyncio.apply() to allow
-    asyncio to run in the notebook environment. This does not happen in a script.
+    a second event loop to run in the same process. This is necessary because
+    Jupyter notebooks already run an event loop in the background.
+
+    If you require more control over the event loop, use the coroutine
+    aprocess_api_requests() instead.
 
     Args:
         requests: List[ChatCompletionRequest]
@@ -159,17 +145,6 @@ def process_api_requests(
             - the API response
     """
 
-    # This function was adapted from openai-cookbook
-
-    # The function is structured as follows:
-    #    - Initialize things
-    #    - In process_api_requests loop:
-    #        - Get next request if one is not already waiting for capacity
-    #        - Update available token & request capacity
-    #        - If enough capacity available, call API
-    #        - The loop pauses if a rate limit error is hit
-    #        - The loop breaks when no tasks remain
-
     # Handle Notebook environment
     if "ipykernel" in sys.modules:
         # nest_asyncio is a workaround for running asyncio in Jupyter notebooks
@@ -180,6 +155,96 @@ def process_api_requests(
         logging.info(
             "Running in Jupyter notebook environment. Activated nest_asyncio to allow asyncio to run."
         )
+
+    responses = asyncio.run(
+        aprocess_api_requests(
+            requests=requests,
+            output_filepath=output_filepath,
+            keep_file=keep_file,
+            max_attempts=max_attempts,
+            rate_limit_headroom_factor=rate_limit_headroom_factor,
+            api_key=api_key,
+            cache=cache,
+        )
+    )
+
+    return responses
+
+
+async def aprocess_api_requests(
+    requests: List[ChatCompletionRequest],
+    output_filepath: Optional[Union[str, Path]] = None,
+    keep_file: bool = False,
+    max_attempts: int = 10,
+    rate_limit_headroom_factor: float = 0.75,
+    api_key: Optional[str] = None,
+    cache: Optional[aiohttp_client_cache.CacheBackend] = None,
+) -> List[Response]:
+    """
+    Make asynchronous requests to the OpenAI API while
+    throttling to stay under rate limits.
+
+    Features:
+    - Streams requests from file, to avoid running out of memory for giant jobs
+    - Makes requests concurrently, to maximize throughput
+    - Throttles request and token usage, to stay under rate limits
+    - Retries failed requests up to {max_attempts} times, to avoid missing data
+    - Logs errors, to diagnose problems with requests
+
+    
+    Args:
+        requests: List[ChatCompletionRequest]
+            The requests to process, see ChatCompletionRequest class for details
+        output_filepath: str, optional
+            Path to the file where the results will be saved
+            file will be a jsonl file, where each line is an array with the original
+            request plus the API response e.g.,
+            [{"model": "gpt-4", "messages": "..."}, {...}]
+            if omitted, the results will be saved to a temporary file.
+        keep_file: bool, optional
+            Whether to keep the results file after the script finishes, in addition
+            to the results being returned by the function.
+            Defaults to False, so the file will be deleted after the script finishes.
+            Setting this to True is not compatible with output_filepath=None.
+        max_attempts: int, optional
+            Number of times to retry a failed request before giving up
+            if omitted, will default to 5
+        rate_limit_headroom_factor: float, optional
+            Factor to multiply the rate limit by to guarantee that the script
+            stays under the limit if omitted, will default to 0.75
+            (75% of the rate limit)
+        api_key: str, optional
+            API key to use. If omitted, the function will attempt to read it
+            from an environment variable OPENAI_API_KEY. If that fails, an error
+            will be raised, unless all requests are cached.
+        cache: aiohttp_client_cache.CacheBackend, optional
+            If provided, API responses will be served from the cache if available.
+            New responses will be saved to the cache.
+            Check the aiohttp_client_cache documentation for details on the
+            available cache backends and how to configure them. See
+            https://aiohttp-client-cache.readthedocs.io/en/stable/backends.html.
+            Each backend requires different dependencies. For example, the SQLite
+            backend requires the package "aiosqlite" to be installed.
+
+    Returns:
+        List[Dict[str, Any]]: list where each element consists of two dictionaries:
+            - the original request
+            - the API response
+    """
+
+     # This function was adapted from openai-cookbook
+
+    # The function is structured as follows:
+    #    - Initialize things
+    #    - In API processing loop
+    #        - Get next request if one is not already waiting for capacity
+    #        - Update available token & request capacity
+    #        - If enough capacity available, call API
+    #        - The loop pauses if a rate limit error is hit
+    #        - The loop breaks when no tasks remain
+    #   - Fetch results from file
+    #   - Sort results in order of input requests
+    #   - Return results
 
     # Check that the cache is configured correctly
     if cache is not None:
@@ -198,52 +263,6 @@ def process_api_requests(
 
     # Remember the order of the requests so that we can sort the results
     request_order = {request.get_hash(): i for i, request in enumerate(requests)}
-
-    asyncio.run(
-        aprocess_api_requests(
-            requests=requests,
-            output_filepath=output_filepath,
-            max_attempts=max_attempts,
-            rate_limit_headroom_factor=rate_limit_headroom_factor,
-            api_key=api_key,
-            cache=cache,
-        )
-    )
-
-    # Read results from file
-    with open(output_filepath, "r") as f:
-        responses = [json.loads(line) for line in f]
-
-    # Sort results in order of input requests
-    # Results is a list of lists, where each sublist is [request, response]
-    responses = sorted(
-        responses,
-        key=lambda x: request_order[hash_dict(x[0])],
-    )
-
-    assert len(responses) == len(requests)
-
-    # Delete file if keep_file is False
-    if not keep_file:
-        output_filepath.unlink()
-    else:
-        # Overwrite file with sorted results
-        with open(output_filepath, "w") as f:
-            for response in responses:
-                f.write(json.dumps(response) + "\n")
-
-    return responses
-
-
-async def aprocess_api_requests(
-    requests: List[ChatCompletionRequest],
-    output_filepath: Path,
-    max_attempts: int,
-    rate_limit_headroom_factor: float,
-    api_key: Optional[str] = None,
-    cache: Optional[aiohttp_client_cache.CacheBackend] = None,
-):
-    """Processes API requests in parallel, throttling to stay under rate limits."""
 
     request_url = "https://api.openai.com/v1/chat/completions"
 
@@ -450,6 +469,30 @@ async def aprocess_api_requests(
         logging.warning(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
+
+    # Read results from file
+    with open(output_filepath, "r") as f:
+        responses = [json.loads(line) for line in f]
+
+    # Sort results in order of input requests
+    # Results is a list of lists, where each sublist is [request, response]
+    responses = sorted(
+        responses,
+        key=lambda x: request_order[hash_dict(x[0])],
+    )
+
+    assert len(responses) == len(requests)
+
+    # Delete file if keep_file is False
+    if not keep_file:
+        output_filepath.unlink()
+    else:
+        # Overwrite file with sorted results
+        with open(output_filepath, "w") as f:
+            for response in responses:
+                f.write(json.dumps(response) + "\n")
+
+    return responses
 
 
 # dataclasses
