@@ -96,7 +96,7 @@ def process_api_requests(
     Make requests to OpenAI. This function is a wrapper around
     aprocess_api_requests() that runs it in a synchronous loop, saving you the
     trouble of having to use asyncio directly.
-    
+
     Note that if you're running this function in a Jupyter notebook, the function
     will automatically import nest_asyncio and call nest_asyncio.apply() to allow
     a second event loop to run in the same process. This is necessary because
@@ -191,7 +191,7 @@ async def aprocess_api_requests(
     - Retries failed requests up to {max_attempts} times, to avoid missing data
     - Logs errors, to diagnose problems with requests
 
-    
+
     Args:
         requests: List[ChatCompletionRequest]
             The requests to process, see ChatCompletionRequest class for details
@@ -232,7 +232,7 @@ async def aprocess_api_requests(
             - the API response
     """
 
-     # This function was adapted from openai-cookbook
+    # This function was adapted from openai-cookbook
 
     # The function is structured as follows:
     #    - Initialize things
@@ -246,19 +246,6 @@ async def aprocess_api_requests(
     #   - Sort results in order of input requests
     #   - Return results
 
-    # Check that the cache is configured correctly
-    if cache is not None:
-        if "POST" not in cache.allowed_methods:
-            raise ValueError(
-                'cache.allowed_methods must include "POST". Add the argument "allowed_methods=["POST"]" to the cache constructor.'
-            )
-
-        if cache.include_headers:
-            raise ValueError(
-                "cache.include_headers must be False to protect the API key."
-            )
-
-    # Handle save file
     output_filepath = prepare_output_filepath(output_filepath, keep_file)
 
     # Remember the order of the requests so that we can sort the results
@@ -266,7 +253,9 @@ async def aprocess_api_requests(
 
     request_url = "https://api.openai.com/v1/chat/completions"
 
-    if cache is not None:
+    if cache:
+        check_cache_settings(cache)
+
         # Check if requests can be served from the cache
         # Build a queue of requests that need to be sent to the API
         # Handling cached requests separately allows us to avoid allocating
@@ -298,12 +287,63 @@ async def aprocess_api_requests(
 
     logging.debug("Cache check complete.")
 
-    if len(requests_queue) == 0:
-        return
+    if len(requests_queue) > 0:
+        await run_request_loop(
+            requests_queue=requests_queue,
+            request_url=request_url,
+            output_filepath=output_filepath,
+            cache=cache,
+            max_attempts=max_attempts,
+            rate_limit_headroom_factor=rate_limit_headroom_factor,
+            api_key=api_key,
+        )
+
+    with open(output_filepath, "r") as f:
+        request_response_pairs = [json.loads(line) for line in f]
+
+    # Sort results in order of input requests
+    # Results is a list of lists, where each sublist is [request, response]
+    request_response_pairs = sorted(
+        request_response_pairs,
+        key=lambda x: request_order[hash_dict(x[0])],
+    )
+
+    assert len(request_response_pairs) == len(requests)
+
+    if not keep_file:
+        output_filepath.unlink()
+    else:
+        # Overwrite file with sorted results
+        with open(output_filepath, "w") as f:
+            for r in request_response_pairs:
+                f.write(json.dumps(r) + "\n")
+
+    return request_response_pairs
+
+
+async def run_request_loop(
+    requests_queue: List[ChatCompletionRequest],
+    request_url: str,
+    output_filepath: Path,
+    cache: Optional[aiohttp_client_cache.CacheBackend] = None,
+    max_attempts: int = 10,
+    rate_limit_headroom_factor: float = 0.75,
+    api_key: Optional[str] = None,
+):
+    """
+    Run the main loop that processes API requests. Save results to a file.
+
+    Args:
+        requests_queue: A queue of requests to process.
+        request_url: The URL to send the requests to.
+        output_filepath: The path to the file where the results will be saved.
+        cache: A aiohttp_client_cache.CacheBackend object that stores API
+            responses. If provided, the response will be stored in the cache.
+    """
 
     # Check that all requests use the same model. Otherwise, we can't set
     # a single rate limit for all requests.
-    if len(set([request.model.name for request in requests])) > 1:
+    if len(set([request.model.name for request in requests_queue])) > 1:
         raise ValueError("All requests must use the same model.")
 
     if rate_limit_headroom_factor < 0.01 or rate_limit_headroom_factor > 1:
@@ -316,13 +356,7 @@ async def aprocess_api_requests(
     )
 
     if api_key is None:
-        try:
-            api_key = os.getenv("OPENAI_API_KEY")
-            assert api_key is not None
-        except AssertionError:
-            raise ValueError(
-                "api_key must be provided or set as an environment variable OPENAI_API_KEY."
-            )
+        api_key = fetch_api_key()
 
     request_header = {"Authorization": f"Bearer {api_key}"}
 
@@ -338,17 +372,16 @@ async def aprocess_api_requests(
 
     # initialize available capacity counts
     max_requests_per_minute = (
-        requests[0].model.requests_per_minute * rate_limit_headroom_factor
+        requests_queue[0].model.requests_per_minute * rate_limit_headroom_factor
     )
     max_tokens_per_minute = (
-        requests[0].model.tokens_per_minute * rate_limit_headroom_factor
+        requests_queue[0].model.tokens_per_minute * rate_limit_headroom_factor
     )
 
     available_request_capacity = max_requests_per_minute
     available_token_capacity = max_tokens_per_minute
     last_update_time = time.time()
 
-    # initialize flags
     logging.debug("Initialization complete.")
 
     logging.info(
@@ -470,29 +503,41 @@ async def aprocess_api_requests(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
 
-    # Read results from file
-    with open(output_filepath, "r") as f:
-        responses = [json.loads(line) for line in f]
 
-    # Sort results in order of input requests
-    # Results is a list of lists, where each sublist is [request, response]
-    responses = sorted(
-        responses,
-        key=lambda x: request_order[hash_dict(x[0])],
-    )
+def check_cache_settings(cache: aiohttp_client_cache.CacheBackend) -> None:
+    """
+    Check that the cache is configured correctly to work with texttunnel.
+    Raises a ValueError if the cache is not configured correctly.
 
-    assert len(responses) == len(requests)
+    Args:
+        cache: The cache to check.
+    """
+    if "POST" not in cache.allowed_methods:
+        raise ValueError(
+            'cache.allowed_methods must include "POST". Add the argument "allowed_methods=["POST"]" to the cache constructor.'
+        )
 
-    # Delete file if keep_file is False
-    if not keep_file:
-        output_filepath.unlink()
-    else:
-        # Overwrite file with sorted results
-        with open(output_filepath, "w") as f:
-            for response in responses:
-                f.write(json.dumps(response) + "\n")
+    if cache.include_headers:
+        raise ValueError("cache.include_headers must be False to protect the API key.")
 
-    return responses
+
+def fetch_api_key() -> str:
+    """
+    Fetch the API key from the environment variable OPENAI_API_KEY. Raises a
+    ValueError if the API key is not found.
+
+    Returns:
+        The API key.
+    """
+
+    try:
+        api_key = os.getenv("OPENAI_API_KEY")
+        assert api_key is not None
+        return api_key
+    except AssertionError:
+        raise ValueError(
+            "OPENAI_API_KEY environment variable not found. Please set it and try again."
+        )
 
 
 # dataclasses
