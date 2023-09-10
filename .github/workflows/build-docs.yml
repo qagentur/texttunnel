@@ -17,7 +17,7 @@ jobs:
           uses: actions/setup-python@v4
           with:
             python-version: 3.9.12
-        - name: Install dependencies
+        - name: Install poetry
           uses: abatilo/actions-poetry@v2
         - name: Setup a local virtual environment
           run: |
@@ -28,7 +28,9 @@ jobs:
           with:
             path: ./.venv
             key: venv-${{ hashFiles('poetry.lock') }}
-        - name: Build sphinx docs
+        - name: Install the docs dependencies
+          run: poetry install --only docs
+        - name: Build docs with Sphinx
           run: |
             poetry run make -C docs html
         - name: Deploy docs to Github Pages
