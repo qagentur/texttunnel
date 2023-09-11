@@ -1,4 +1,9 @@
-# History
+# Changelog for texttunnel
+
+## 0.3.1
+
+- Made `aprocess_api_requests()` independently useable to allow advanced users to take full control of the asyncio event loop.
+- Added text classification example.
 
 ## 0.3.0
 
