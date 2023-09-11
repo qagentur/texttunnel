@@ -94,7 +94,7 @@ def process_api_requests(
 ) -> List[Response]:
     """
     Make requests to OpenAI. This function is a wrapper around
-    aprocess_api_requests() that runs it in a synchronous loop, saving you the
+    aprocess_api_requests() that executes it within asyncio.run, saving you the
     trouble of having to use asyncio directly.
 
     Note that if you're running this function in a Jupyter notebook, the function
