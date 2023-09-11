@@ -30,7 +30,7 @@ input_texts = [
 # Describe the output format that we'd like to receive,
 # using JSON Schema
 function = {
-    "name": "sentiment_analysis",
+    "name": "text_classification",
     "parameters": {
         "type": "object",
         "properties": {
