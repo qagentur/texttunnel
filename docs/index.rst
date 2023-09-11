@@ -24,6 +24,9 @@ Features:
 To get started, check the examples:
 https://github.com/qagentur/texttunnel/tree/main/examples
 
+OpenAI's function calling guide is also a useful resource:
+https://platform.openai.com/docs/guides/gpt/function-calling
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
