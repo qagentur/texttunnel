@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Welcome to texttunnel’s documentation! &mdash; texttunnel 0.2.1 documentation</title>
+  <title>texttunnel: Efficient text processing with GPT-3.5 and GPT-4 &mdash; texttunnel 0.2.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
   <!--[if lt IE 9]>
@@ -42,7 +42,7 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <!-- Local TOC -->
               <div class="local-toc"><ul>
-<li><a class="reference internal" href="#">Welcome to texttunnel’s documentation!</a></li>
+<li><a class="reference internal" href="#">texttunnel: Efficient text processing with GPT-3.5 and GPT-4</a></li>
 <li><a class="reference internal" href="#modules">Modules</a><ul>
 <li><a class="reference internal" href="#module-texttunnel.chat">Chat Module</a><ul>
 <li><a class="reference internal" href="#texttunnel.chat.Chat"><code class="docutils literal notranslate"><span class="pre">Chat</span></code></a><ul>
@@ -136,7 +136,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Welcome to texttunnel’s documentation!</li>
+      <li class="breadcrumb-item active">texttunnel: Efficient text processing with GPT-3.5 and GPT-4</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -146,8 +146,8 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="welcome-to-texttunnel-s-documentation">
-<h1>Welcome to texttunnel’s documentation!<a class="headerlink" href="#welcome-to-texttunnel-s-documentation" title="Permalink to this heading"></a></h1>
+  <section id="texttunnel-efficient-text-processing-with-gpt-3-5-and-gpt-4">
+<h1>texttunnel: Efficient text processing with GPT-3.5 and GPT-4<a class="headerlink" href="#texttunnel-efficient-text-processing-with-gpt-3-5-and-gpt-4" title="Permalink to this heading"></a></h1>
 <p>This package offers a straightforward interface for integrating the GPT-3.5 and GPT-4 models into your natural language processing pipelines. It is optimally designed for the following scenario:</p>
 <p>Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.</p>
 <p>Features:</p>
@@ -158,7 +158,7 @@
 <li><p>🚀 Efficient Batching: Supports bulk processing by packing multiple input texts into a single request for the OpenAI’s API.</p></li>
 <li><p>🚦 Asynchronous Requests: Facilitates speedy data processing by sending simultaneous requests to OpenAI’s API, while maintaining API rate limits.</p></li>
 <li><p>💰 Cost Estimation: Aims for transparency in API utilization cost by providing cost estimates before sending API requests.</p></li>
-<li><p>💾 Disk Caching: Uses diskcache to avoid redundant requests and reduce cost by caching previous requests.</p></li>
+<li><p>💾 Caching: Uses aiohttp_client_cach to avoid redundant requests and reduce cost by caching previous requests. Supports SQLite, MongoDB, DynamoDB and Redis cache backends.</p></li>
 <li><p>📝 Request Logging: Implements Python’s native logging framework for tracking and logging all API requests.</p></li>
 </ul>
 <p>To get started, check the examples:
