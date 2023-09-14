@@ -382,6 +382,12 @@ def build_binpacked_requests(
     Returns:
         A list of ChatCompletionRequests.
     """
+    if len(set(texts)) != len(texts):
+        # Downstream code assumes that each request has a unique hash
+        # Duplicate texts would cause the requests to have the same hash
+        # Plus it's probably a mistake and would waste money
+        raise ValueError("Duplicate texts found. Please remove duplicates.")
+
     if max_tokens_per_request is None:
         max_tokens_per_request = int(model.context_size * 0.9)
 

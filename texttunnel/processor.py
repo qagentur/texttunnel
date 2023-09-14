@@ -232,6 +232,11 @@ async def aprocess_api_requests(
             - the API response
     """
 
+    if len(requests) != len(set([request.get_hash() for request in requests])):
+        # Duplicate requests can cause problems with ordering of results
+        # Plus it's probably a mistake and would waste money
+        raise ValueError("Duplicate requests detected. Each request must be unique.")
+
     # This function was adapted from openai-cookbook
 
     # The function is structured as follows:
