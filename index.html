@@ -323,7 +323,7 @@ and function definition.</p>
 Must be a dictionary that describes a valid JSON schema.
 See <a class="reference external" href="https://platform.openai.com/docs/guides/gpt/function-calling">https://platform.openai.com/docs/guides/gpt/function-calling</a></p></li>
 <li><p><strong>system_message</strong> – The message to include at the beginning of each chat.</p></li>
-<li><p><strong>texts</strong> – A list of texts to binpack into chats.</p></li>
+<li><p><strong>texts</strong> – A list of texts to binpack into chats. Duplicates are not allowed.</p></li>
 <li><p><strong>params</strong> – Object of class Parameters. See models.Parameters for details.</p></li>
 <li><p><strong>max_tokens_per_request</strong> – The maximum number of tokens allowed in one request.
 Defaults to 90% of the model’s context size. The 10% buffer makes
@@ -363,7 +363,7 @@ Must be a dictionary that describes a valid JSON schema.
 See <a class="reference external" href="https://platform.openai.com/docs/guides/gpt/function-calling">https://platform.openai.com/docs/guides/gpt/function-calling</a></p></li>
 <li><p><strong>system_message</strong> – The message to include at the beginning of each chat.</p></li>
 <li><p><strong>params</strong> – Object of class Parameters. See models.Parameters for details.</p></li>
-<li><p><strong>texts</strong> – A list of texts to binpack into chats.</p></li>
+<li><p><strong>texts</strong> – A list of texts to binpack into chats. Duplicates are not allowed.</p></li>
 <li><p><strong>encoding_name</strong> – The name of the encoding to use for tokenization.
 Defaults to “cl100k_base”.</p></li>
 <li><p><strong>long_text_handling</strong> – Passed to the binpacking function. Defaults to
@@ -586,7 +586,8 @@ throttling to stay under rate limits.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>requests</strong> – List[ChatCompletionRequest]
-The requests to process, see ChatCompletionRequest class for details</p></li>
+The requests to process, see ChatCompletionRequest class for details.
+Duplicate requests are not allowed.</p></li>
 <li><p><strong>output_filepath</strong> – str, optional
 Path to the file where the results will be saved
 file will be a jsonl file, where each line is an array with the original
@@ -731,7 +732,8 @@ aprocess_api_requests() instead.</p>
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>requests</strong> – List[ChatCompletionRequest]
-The requests to process, see ChatCompletionRequest class for details</p></li>
+The requests to process, see ChatCompletionRequest class for details.
+Duplicate requests are not allowed.</p></li>
 <li><p><strong>output_filepath</strong> – str, optional
 Path to the file where the results will be saved
 file will be a jsonl file, where each line is an array with the original
