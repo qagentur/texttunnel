@@ -604,24 +604,28 @@ class APIRequest:
         logging.info(f"Starting request #{self.task_id}")
         timeout = aiohttp.ClientTimeout(total=timeout_seconds)
 
-        try:
-            # Choose the session class based on whether cache is provided
-            session_class = (
-                aiohttp.ClientSession
-                if cache is None
-                else aiohttp_client_cache.CachedSession
-            )
-            session_kwargs = (
-                {"timeout": timeout}
-                if cache is None
-                else {"cache": cache, "timeout": timeout}
-            )
+        # Choose the session class based on whether cache is provided
+        session_class = (
+            aiohttp.ClientSession
+            if cache is None
+            else aiohttp_client_cache.CachedSession
+        )
 
-            async with session_class(**session_kwargs) as session:
-                async with session.post(
-                    url=request_url, headers=request_header, json=self.request.to_dict()
-                ) as response:
-                    response = await response.json()
+        session_kwargs = (
+            {"timeout": timeout}
+            if cache is None
+            else {"cache": cache, "timeout": timeout}
+        )
+
+        session = None
+
+        try:
+            session = session_class(**session_kwargs)  # type: ignore
+
+            async with session.post(
+                url=request_url, headers=request_header, json=self.request.to_dict()
+            ) as response:
+                response = await response.json()
 
             if "error" in response:
                 logging.warning(
@@ -642,6 +646,11 @@ class APIRequest:
             logging.warning(f"Request {self.task_id} failed with Exception {e}")
             status_tracker.num_other_errors += 1
             error = e
+
+        finally:
+            # Always close the session - even if there was an error
+            if session is not None:
+                await session.close()
 
         if error:
             self.result.append(error)
