@@ -360,7 +360,7 @@ def build_binpacked_requests(
             Must be a dictionary that describes a valid JSON schema.
             See https://platform.openai.com/docs/guides/gpt/function-calling
         system_message: The message to include at the beginning of each chat.
-        texts: A list of texts to binpack into chats.
+        texts: A list of texts to binpack into chats. Duplicates are not allowed.
         params: Object of class Parameters. See models.Parameters for details.
         max_tokens_per_request: The maximum number of tokens allowed in one request.
             Defaults to 90% of the model's context size. The 10% buffer makes
@@ -382,6 +382,12 @@ def build_binpacked_requests(
     Returns:
         A list of ChatCompletionRequests.
     """
+    if len(set(texts)) != len(texts):
+        # Downstream code assumes that each request has a unique hash
+        # Duplicate texts would cause the requests to have the same hash
+        # Plus it's probably a mistake and would waste money
+        raise ValueError("Duplicate texts found. Please remove duplicates.")
+
     if max_tokens_per_request is None:
         max_tokens_per_request = int(model.context_size * 0.9)
 
@@ -444,7 +450,7 @@ def build_requests(
             See https://platform.openai.com/docs/guides/gpt/function-calling
         system_message: The message to include at the beginning of each chat.
         params: Object of class Parameters. See models.Parameters for details.
-        texts: A list of texts to binpack into chats.
+        texts: A list of texts to binpack into chats. Duplicates are not allowed.
         encoding_name: The name of the encoding to use for tokenization.
             Defaults to "cl100k_base".
         long_text_handling: Passed to the binpacking function. Defaults to

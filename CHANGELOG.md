@@ -1,5 +1,18 @@
 # Changelog for texttunnel
 
+## 0.3.2
+
+Changes:
+
+- `chat.build_requests` and `chat.build_binpacked_requests` now raise a ValueError when the text argument contains duplicates
+- `aprocess_api_requests` now raises a ValueError when the requests passed to it have duplicate hashes
+
+Both of these changes are to prevent waste of money on duplicate API requests. They also prevent a sorting error where results wouldn't be returned in the same order as the requests were passed in.
+
+Bug fixes:
+
+- Fixed a bug where aiohttp sessions were not closed when an error occurred in the request
+
 ## 0.3.1
 
 - Made `aprocess_api_requests()` independently useable to allow advanced users to take full control of the asyncio event loop.

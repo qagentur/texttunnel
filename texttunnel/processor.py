@@ -107,7 +107,8 @@ def process_api_requests(
 
     Args:
         requests: List[ChatCompletionRequest]
-            The requests to process, see ChatCompletionRequest class for details
+            The requests to process, see ChatCompletionRequest class for details.
+            Duplicate requests are not allowed.
         output_filepath: str, optional
             Path to the file where the results will be saved
             file will be a jsonl file, where each line is an array with the original
@@ -194,7 +195,8 @@ async def aprocess_api_requests(
 
     Args:
         requests: List[ChatCompletionRequest]
-            The requests to process, see ChatCompletionRequest class for details
+            The requests to process, see ChatCompletionRequest class for details.
+            Duplicate requests are not allowed.
         output_filepath: str, optional
             Path to the file where the results will be saved
             file will be a jsonl file, where each line is an array with the original
@@ -231,6 +233,11 @@ async def aprocess_api_requests(
             - the original request
             - the API response
     """
+
+    if len(requests) != len(set([request.get_hash() for request in requests])):
+        # Duplicate requests can cause problems with ordering of results
+        # Plus it's probably a mistake and would waste money
+        raise ValueError("Duplicate requests detected. Each request must be unique.")
 
     # This function was adapted from openai-cookbook
 

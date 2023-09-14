@@ -59,6 +59,25 @@ def encoding_fixture():
 
 
 @pytest.fixture
+def requests_fixture():
+    function_def: chat.FunctionDef = {
+        "name": "tell_feeling",
+        "parameters": {
+            "type": "object",
+            "properties": {"feeling": {"type": "string"}},
+        },
+    }
+
+    return chat.build_requests(
+        system_message="You are a helpful assistant.",
+        model=models.GPT_3_5_TURBO,
+        function=function_def,
+        texts=["I am happy.", "I am sad."],
+        params=models.Parameters(max_tokens=128),
+    )
+
+
+@pytest.fixture
 def response_fixture():
     return [
         {

@@ -1,4 +1,5 @@
 from pathlib import Path
+import pytest
 from texttunnel import processor
 
 
@@ -44,3 +45,13 @@ def test_usage_to_cost(response_fixture, model_fixture):
     cost = processor.usage_to_cost(usage, model_fixture)
 
     assert cost > 0
+
+
+def test_process_api_requests_fails_on_duplicate_requests(requests_fixture):
+    with pytest.raises(ValueError):
+        processor.process_api_requests(
+            requests=[
+                requests_fixture[0],
+                requests_fixture[0],
+            ]
+        )
