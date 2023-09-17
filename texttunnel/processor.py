@@ -194,10 +194,9 @@ async def fetch_json_response_from_cache(
         json=request_json,
     )
 
-    if cache_return_tuple is None:
+    if cache_return_tuple[0] is None:
         return None
 
-    assert cache_return_tuple[0] is not None
     cache_response_json = await cache_return_tuple[0].json()
 
     return cache_response_json
