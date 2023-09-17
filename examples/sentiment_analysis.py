@@ -12,8 +12,8 @@ from texttunnel import chat, models, processor
 # Requires the additional package aiosqlite (pip install aiosqlite)
 cache = SQLiteBackend(cache_name="openai_cache.sqlite", allowed_methods=["POST"])
 
-
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARN)
+logging.getLogger("texttunnel").setLevel(logging.INFO)
 
 # Texts that we'd like to know the sentiment of
 input_texts = [

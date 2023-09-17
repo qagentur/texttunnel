@@ -66,7 +66,19 @@ Utils Module
 .. automodule:: texttunnel.utils
    :members:
 
+Logging
+=======
 
+The package uses the standard logging library and creates a logger named "texttunnel".
+
+To enable logging, add the following code to your script:
+
+.. code-block:: python
+
+   import logging
+   logging.basicConfig(level=logging.WARNING) # choose whatever level you want
+   logging.getLogger("texttunnel").setLevel(logging.INFO) # set to DEBUG for more verbose logging
+    
 
 Indices and tables
 ==================

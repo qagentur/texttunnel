@@ -47,6 +47,8 @@ from texttunnel.utils import hash_dict
 
 Response = List[Dict[str, Any]]
 
+logger = logging.getLogger("texttunnel")
+
 
 def prepare_output_filepath(
     output_filepath: Optional[Union[str, Path]], keep_file: bool
@@ -153,7 +155,7 @@ def process_api_requests(
         import nest_asyncio
 
         nest_asyncio.apply()
-        logging.info(
+        logger.info(
             "Running in Jupyter notebook environment. Activated nest_asyncio to allow asyncio to run."
         )
 
@@ -210,11 +212,11 @@ async def aprocess_api_requests(
             Setting this to True is not compatible with output_filepath=None.
         max_attempts: int, optional
             Number of times to retry a failed request before giving up
-            if omitted, will default to 5
+            if omitted, defaults to 5.
         rate_limit_headroom_factor: float, optional
             Factor to multiply the rate limit by to guarantee that the script
-            stays under the limit if omitted, will default to 0.75
-            (75% of the rate limit)
+            stays under the limit if omitted, defaults to 0.75.
+            (75% of the rate limit).
         api_key: str, optional
             API key to use. If omitted, the function will attempt to read it
             from an environment variable OPENAI_API_KEY. If that fails, an error
@@ -225,7 +227,7 @@ async def aprocess_api_requests(
             Check the aiohttp_client_cache documentation for details on the
             available cache backends and how to configure them. See
             https://aiohttp-client-cache.readthedocs.io/en/stable/backends.html.
-            Each backend requires different dependencies. For example, the SQLite
+            Each backend has different dependencies. For example, the SQLite
             backend requires the package "aiosqlite" to be installed.
 
     Returns:
@@ -256,6 +258,7 @@ async def aprocess_api_requests(
     output_filepath = prepare_output_filepath(output_filepath, keep_file)
 
     # Remember the order of the requests so that we can sort the results
+    # Duplicate requests are not allowed, so the hash of each request is unique
     request_order = {request.get_hash(): i for i, request in enumerate(requests)}
 
     request_url = "https://api.openai.com/v1/chat/completions"
@@ -267,7 +270,7 @@ async def aprocess_api_requests(
         # Build a queue of requests that need to be sent to the API
         # Handling cached requests separately allows us to avoid allocating
         # rate limit capacity to them and provide clearer logging.
-        logging.debug("Checking cache for requests.")
+        logger.debug("Checking cache for requests.")
         requests_queue = []
         for request in requests:
             # Check if the request is in the cache
@@ -285,14 +288,14 @@ async def aprocess_api_requests(
                 append_to_jsonl(data, output_filepath)
 
         request_cache_hits = len(requests) - len(requests_queue)
-        logging.info(
+        logger.info(
             f"Found {request_cache_hits} out of {len(requests)} requests in cache."
         )
     else:
-        logging.debug("No cache provided.")
+        logger.debug("No cache provided.")
         requests_queue = requests.copy()
 
-    logging.debug("Cache check complete.")
+    logger.debug("Cache check complete.")
 
     if len(requests_queue) > 0:
         await run_request_loop(
@@ -389,9 +392,9 @@ async def run_request_loop(
     available_token_capacity = max_tokens_per_minute
     last_update_time = time.time()
 
-    logging.debug("Initialization complete.")
+    logger.debug("Initialization complete.")
 
-    logging.info(
+    logger.info(
         f"Beginning main requests loop. {len(requests_queue)} requests to make."
     )
 
@@ -404,9 +407,7 @@ async def run_request_loop(
         if next_request is None:
             if not retry_queue.empty():
                 next_request = retry_queue.get_nowait()
-                logging.debug(
-                    f"Retrying request {next_request.task_id}: {next_request}"
-                )
+                logger.debug(f"Retrying request {next_request.task_id}: {next_request}")
             # check if there are requests that haven't been tried yet
             if len(requests_queue) > 0:
                 next_request = requests_queue.pop(0)
@@ -420,7 +421,7 @@ async def run_request_loop(
                 )
                 status_tracker.num_tasks_started += 1
                 status_tracker.num_tasks_in_progress += 1
-                logging.debug(f"Reading request {next_request.task_id}: {next_request}")
+                logger.debug(f"Reading request {next_request.task_id}: {next_request}")
 
         # update available capacity
         current_time = time.time()
@@ -468,7 +469,7 @@ async def run_request_loop(
         else:
             # Log status every 10 seconds
             if time.time() - last_status_log_timestamp > 10:
-                logging.debug(
+                logger.debug(
                     "%s tasks in progress. Successful tasks: %s. Failed tasks: %s. "
                     "Rate limit errors: %s. Other errors: %s. Retry queue length: %s ."
                     "Tasks not yet tried: %s. ",
@@ -495,18 +496,18 @@ async def run_request_loop(
             )
             await asyncio.sleep(remaining_seconds_to_pause)
             # ^e.g., if pause is 15 seconds and final limit was hit 5 seconds ago
-            logging.warn(
+            logger.warn(
                 f"Pausing to cool down until {time.ctime(status_tracker.time_of_last_rate_limit_error + seconds_to_pause_after_rate_limit_error)}"
             )
 
     # after finishing, log final status
-    logging.info("Parallel processing complete.")
+    logger.info("Parallel processing complete.")
     if status_tracker.num_tasks_failed > 0:
-        logging.warning(
+        logger.warning(
             f"{status_tracker.num_tasks_failed} / {status_tracker.num_tasks_started} requests failed. Errors logged to {output_filepath}."
         )
     if status_tracker.num_rate_limit_errors > 0:
-        logging.warning(
+        logger.warning(
             f"{status_tracker.num_rate_limit_errors} rate limit errors received. Consider running at a lower rate."
         )
 
@@ -608,7 +609,7 @@ class APIRequest:
 
         error = None
 
-        logging.info(f"Starting request #{self.task_id}")
+        logger.info(f"Starting request #{self.task_id}")
         timeout = aiohttp.ClientTimeout(total=timeout_seconds)
 
         # Choose the session class based on whether cache is provided
@@ -635,7 +636,7 @@ class APIRequest:
                 response = await response.json()
 
             if "error" in response:
-                logging.warning(
+                logger.warning(
                     f"Request {self.task_id} failed with error {response['error']}"
                 )
                 status_tracker.num_api_errors += 1
@@ -650,7 +651,7 @@ class APIRequest:
         except (
             Exception
         ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
-            logging.warning(f"Request {self.task_id} failed with Exception {e}")
+            logger.warning(f"Request {self.task_id} failed with Exception {e}")
             status_tracker.num_other_errors += 1
             error = e
 
@@ -663,13 +664,13 @@ class APIRequest:
             self.result.append(error)
             if self.attempts_left:
                 retry_queue.put_nowait(self)
-                logging.debug(
+                logger.debug(
                     "Added request #%s to retry queue. Queue length: %s.",
                     self.task_id,
                     retry_queue.qsize(),
                 )
             else:
-                logging.error(
+                logger.error(
                     f"Request {self.request.to_dict()} failed after all attempts. Saving errors: {self.result}"
                 )
                 data = [self.request.to_dict(), [str(e) for e in self.result]]
@@ -681,7 +682,7 @@ class APIRequest:
             append_to_jsonl(data, output_filepath)
             status_tracker.num_tasks_in_progress -= 1
             status_tracker.num_tasks_succeeded += 1
-            logging.debug(f"Request #{self.task_id} saved to {output_filepath}")
+            logger.debug(f"Request #{self.task_id} saved to {output_filepath}")
 
 
 # functions
