@@ -119,6 +119,7 @@
 </li>
 </ul>
 </li>
+<li><a class="reference internal" href="#logging">Logging</a></li>
 <li><a class="reference internal" href="#indices-and-tables">Indices and tables</a></li>
 </ul>
 </div>
@@ -601,11 +602,11 @@ Defaults to False, so the file will be deleted after the script finishes.
 Setting this to True is not compatible with output_filepath=None.</p></li>
 <li><p><strong>max_attempts</strong> – int, optional
 Number of times to retry a failed request before giving up
-if omitted, will default to 5</p></li>
+if omitted, defaults to 5.</p></li>
 <li><p><strong>rate_limit_headroom_factor</strong> – float, optional
 Factor to multiply the rate limit by to guarantee that the script
-stays under the limit if omitted, will default to 0.75
-(75% of the rate limit)</p></li>
+stays under the limit if omitted, defaults to 0.75.
+(75% of the rate limit).</p></li>
 <li><p><strong>api_key</strong> – str, optional
 API key to use. If omitted, the function will attempt to read it
 from an environment variable OPENAI_API_KEY. If that fails, an error
@@ -616,7 +617,7 @@ New responses will be saved to the cache.
 Check the aiohttp_client_cache documentation for details on the
 available cache backends and how to configure them. See
 <a class="reference external" href="https://aiohttp-client-cache.readthedocs.io/en/stable/backends.html">https://aiohttp-client-cache.readthedocs.io/en/stable/backends.html</a>.
-Each backend requires different dependencies. For example, the SQLite
+Each backend has different dependencies. For example, the SQLite
 backend requires the package “aiosqlite” to be installed.</p></li>
 </ul>
 </dd>
@@ -937,6 +938,16 @@ and handles edge cases like newlines in the text.</p>
 </dd></dl>
 
 </section>
+</section>
+<section id="logging">
+<h1>Logging<a class="headerlink" href="#logging" title="Permalink to this heading"></a></h1>
+<p>The package uses the standard logging library and creates a logger named “texttunnel”.</p>
+<p>To enable logging, add the following code to your script:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">logging</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">basicConfig</span><span class="p">(</span><span class="n">level</span><span class="o">=</span><span class="n">logging</span><span class="o">.</span><span class="n">WARNING</span><span class="p">)</span> <span class="c1"># choose whatever level you want</span>
+<span class="n">logging</span><span class="o">.</span><span class="n">getLogger</span><span class="p">(</span><span class="s2">&quot;texttunnel&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">setLevel</span><span class="p">(</span><span class="n">logging</span><span class="o">.</span><span class="n">INFO</span><span class="p">)</span> <span class="c1"># set to DEBUG for more verbose logging</span>
+</pre></div>
+</div>
 </section>
 <section id="indices-and-tables">
 <h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this heading"></a></h1>
