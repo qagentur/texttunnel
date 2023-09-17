@@ -12,12 +12,13 @@ from texttunnel import chat, models, processor
 nest_asyncio.apply()  # to allow for asyncio.run() within Jupyter
 
 # %%
-
 # Create a SQLite cache to store the results of the requests
 # When this script is run again, the results will be loaded from the cache
 # Requires the additional package aiosqlite (pip install aiosqlite)
 cache = SQLiteBackend(cache_name="openai_cache.sqlite", allowed_methods=["POST"])
-logging.basicConfig(level=logging.INFO)
+
+logging.basicConfig(level=logging.WARN)
+logging.getLogger("texttunnel").setLevel(logging.INFO)
 
 # Texts that we'd like to know the sentiment of
 input_texts = [
@@ -71,3 +72,5 @@ results = [
 
 for text, result in zip(input_texts, results):
     print(f"{text}: {result}")
+
+# %%
