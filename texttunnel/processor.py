@@ -346,6 +346,9 @@ async def aprocess_api_requests(
             api_key=api_key,
         )
 
+    if cache:
+        await cache.close()
+
     with open(output_filepath, "r") as f:
         request_response_pairs = [json.loads(line) for line in f]
 
