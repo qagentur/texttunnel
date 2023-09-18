@@ -6,7 +6,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "texttunnel"
-version = "0.3.2"
+version = "0.3.3"
 description = "Efficient text processing with the OpenAI API"
 authors = ["Q Agentur für Forschung GmbH <info@teamq.de>"]
 readme = "README.md"
