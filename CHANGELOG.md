@@ -1,5 +1,16 @@
 # Changelog for texttunnel
 
+## 0.3.3
+
+Changes:
+
+- `aprocess_api_requests` now makes cache lookup asynchronously to improve performance
+- the package is now compatible with jsonschema 3.0.0 and up, previously it was only compatible with 4.0.0 and up
+
+Bug fixes:
+
+- `aprocess_api_requests` now properly closes the connection to the cache backend
+
 ## 0.3.2
 
 Changes:

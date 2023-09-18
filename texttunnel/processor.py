@@ -174,6 +174,34 @@ def process_api_requests(
     return responses
 
 
+async def fetch_json_response_from_cache(
+    cache: aiohttp_client_cache.CacheBackend, url: str, request_json: dict
+) -> Optional[dict]:
+    """
+    Fetch a response from the cache if it exists.
+
+    Args:
+        cache: Cache to fetch from.
+        url: URL that was requested.
+        request_json: JSON payload that was sent with the request.
+
+    Returns:
+        The cached response JSON if it exists, otherwise None.
+    """
+    cache_return_tuple = await cache.request(
+        method="POST",  # ChatCompletion always uses POST requests
+        url=url,
+        json=request_json,
+    )
+
+    if cache_return_tuple[0] is None:
+        return None
+
+    cache_response_json = await cache_return_tuple[0].json()
+
+    return cache_response_json
+
+
 async def aprocess_api_requests(
     requests: List[ChatCompletionRequest],
     output_filepath: Optional[Union[str, Path]] = None,
@@ -271,19 +299,29 @@ async def aprocess_api_requests(
         # Handling cached requests separately allows us to avoid allocating
         # rate limit capacity to them and provide clearer logging.
         logger.debug("Checking cache for requests.")
-        requests_queue = []
-        for request in requests:
-            # Check if the request is in the cache
-            cache_response_tuple = await cache.request(
-                method="POST", url=request_url, json=request.to_dict()
+
+        # Make asynchronous calls to the cache
+        tasks = [
+            fetch_json_response_from_cache(
+                cache=cache,
+                url=request_url,
+                request_json=request.to_dict(),
             )
+            for request in requests
+        ]
 
-            cached_response = cache_response_tuple[0]
+        cached_responses = await asyncio.gather(*tasks)
 
-            if cached_response is None:
-                requests_queue.append(request)
-            else:
-                response = await cached_response.json()
+        # Create list of requests that need to be sent to the API
+        requests_queue = [
+            request
+            for request, response in zip(requests, cached_responses)
+            if response is None
+        ]
+
+        # Write cached answers to file
+        for request, response in zip(requests, cached_responses):
+            if response is not None:
                 data = [request.to_dict(), response]
                 append_to_jsonl(data, output_filepath)
 
@@ -307,6 +345,9 @@ async def aprocess_api_requests(
             rate_limit_headroom_factor=rate_limit_headroom_factor,
             api_key=api_key,
         )
+
+    if cache:
+        await cache.close()
 
     with open(output_filepath, "r") as f:
         request_response_pairs = [json.loads(line) for line in f]
