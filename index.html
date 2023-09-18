@@ -98,6 +98,7 @@
 <li><a class="reference internal" href="#texttunnel.processor.aprocess_api_requests"><code class="docutils literal notranslate"><span class="pre">aprocess_api_requests()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.processor.check_cache_settings"><code class="docutils literal notranslate"><span class="pre">check_cache_settings()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.processor.fetch_api_key"><code class="docutils literal notranslate"><span class="pre">fetch_api_key()</span></code></a></li>
+<li><a class="reference internal" href="#texttunnel.processor.fetch_json_response_from_cache"><code class="docutils literal notranslate"><span class="pre">fetch_json_response_from_cache()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.processor.is_valid_response"><code class="docutils literal notranslate"><span class="pre">is_valid_response()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.processor.parse_arguments"><code class="docutils literal notranslate"><span class="pre">parse_arguments()</span></code></a></li>
 <li><a class="reference internal" href="#texttunnel.processor.parse_token_usage"><code class="docutils literal notranslate"><span class="pre">parse_token_usage()</span></code></a></li>
@@ -657,6 +658,24 @@ ValueError if the API key is not found.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Returns<span class="colon">:</span></dt>
 <dd class="field-odd"><p>The API key.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="texttunnel.processor.fetch_json_response_from_cache">
+<em class="property"><span class="k"><span class="pre">async</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">texttunnel.processor.</span></span><span class="sig-name descname"><span class="pre">fetch_json_response_from_cache</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">CacheBackend</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">url</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">request_json</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#texttunnel.processor.fetch_json_response_from_cache" title="Permalink to this definition"></a></dt>
+<dd><p>Fetch a response from the cache if it exists.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>cache</strong> – Cache to fetch from.</p></li>
+<li><p><strong>url</strong> – URL that was requested.</p></li>
+<li><p><strong>request_json</strong> – JSON payload that was sent with the request.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The cached response JSON if it exists, otherwise None.</p>
 </dd>
 </dl>
 </dd></dl>
