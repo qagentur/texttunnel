@@ -276,7 +276,7 @@ async def aprocess_api_requests(
     #    - In API processing loop
     #        - Get next request if one is not already waiting for capacity
     #        - Update available token & request capacity
-    #        - If enough capacity available, call API
+    #        - If enough capacity available, call API. Responses are written to file
     #        - The loop pauses if a rate limit error is hit
     #        - The loop breaks when no tasks remain
     #   - Fetch results from file
@@ -295,7 +295,7 @@ async def aprocess_api_requests(
         check_cache_settings(cache)
 
         # Check if requests can be served from the cache
-        # Build a queue of requests that need to be sent to the API
+        # Build a list of requests that need to be sent to the API
         # Handling cached requests separately allows us to avoid allocating
         # rate limit capacity to them and provide clearer logging.
         logger.debug("Checking cache for requests.")
@@ -312,18 +312,17 @@ async def aprocess_api_requests(
 
         cached_responses = await asyncio.gather(*tasks)
 
-        # Create list of requests that need to be sent to the API
-        requests_queue = [
-            request
-            for request, response in zip(requests, cached_responses)
-            if response is None
-        ]
+        # Create a list of requests that need to be sent to the API
+        requests_queue = []
 
-        # Write cached answers to file
+        # Check cache responses, and add to queue if not found
         for request, response in zip(requests, cached_responses):
             if response is not None:
+                # Add to results file
                 data = [request.to_dict(), response]
                 append_to_jsonl(data, output_filepath)
+            else:
+                requests_queue.append(request)
 
         request_cache_hits = len(requests) - len(requests_queue)
         logger.info(
@@ -406,6 +405,7 @@ async def run_request_loop(
         0.001  # 1 ms limits max throughput to 1,000 requests per second
     )
 
+    # initialize API authentication
     if api_key is None:
         api_key = fetch_api_key()
 
