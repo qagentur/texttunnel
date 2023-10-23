@@ -666,28 +666,27 @@ class APIRequest:
             else {"cache": cache, "timeout": timeout}
         )
 
-        session = None
-
         try:
-            session = session_class(**session_kwargs)  # type: ignore
+            async with session_class(**session_kwargs) as session:
+                async with session.post(
+                    url=request_url,
+                    headers=request_header,
+                    json=self.request.to_dict(),
+                ) as response:
+                    response = await response.json()
 
-            async with session.post(
-                url=request_url, headers=request_header, json=self.request.to_dict()
-            ) as response:
-                response = await response.json()
-
-            if "error" in response:
-                logger.warning(
-                    f"Request {self.task_id} failed with error {response['error']}"
-                )
-                status_tracker.num_api_errors += 1
-                error = response
-                if "Rate limit" in response["error"].get("message", ""):
-                    status_tracker.time_of_last_rate_limit_error = int(time.time())
-                    status_tracker.num_rate_limit_errors += 1
-                    status_tracker.num_api_errors -= (
-                        1  # rate limit errors are counted separately
+                if "error" in response:
+                    logger.warning(
+                        f"Request {self.task_id} failed with error {response['error']}"
                     )
+                    status_tracker.num_api_errors += 1
+                    error = response
+                    if "Rate limit" in response["error"].get("message", ""):
+                        status_tracker.time_of_last_rate_limit_error = int(time.time())
+                        status_tracker.num_rate_limit_errors += 1
+                        status_tracker.num_api_errors -= (
+                            1  # rate limit errors are counted separately
+                        )
 
         except (
             Exception
@@ -695,11 +694,6 @@ class APIRequest:
             logger.warning(f"Request {self.task_id} failed with Exception {e}")
             status_tracker.num_other_errors += 1
             error = e
-
-        finally:
-            # Always close the session - even if there was an error
-            if session is not None:
-                await session.close()
 
         if error:
             self.result.append(error)
