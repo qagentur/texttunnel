@@ -310,7 +310,7 @@ async def aprocess_api_requests(
             for request in requests
         ]
 
-        logger.debug("Created cache check tasks.")
+        logger.debug("Created cache request coroutines.")
 
         cached_responses = await asyncio.gather(*tasks)
 
