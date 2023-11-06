@@ -1,5 +1,16 @@
 # Changelog for texttunnel
 
+## 0.3.4
+
+Changes:
+
+- additional DEBUG level logs for cached requests
+
+Bug fixes:
+
+- `aprocess_api_requests` no longer gets stuck after a request fails
+- aiohttp sessions are now properly closed after an error occurs in the request
+
 ## 0.3.3
 
 Changes:
