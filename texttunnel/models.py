@@ -176,6 +176,7 @@ class Parameters:
             new tokens based on their existing frequency in the text so far,
             decreasing the model's likelihood to repeat the same line verbatim.
             Defaults to 0.0.
+        seed: Integer seed for random number generation. Defaults to 42.
 
     Parameters that are not listed here are not supported by this package. The
     reason is that they're not relevant for the use case of this package.
@@ -187,6 +188,7 @@ class Parameters:
         temperature: float = 0.0,
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
+        seed: int = 42,
     ):
         if max_tokens < 1:
             raise ValueError("max_tokens must be positive")
@@ -204,6 +206,7 @@ class Parameters:
         self.temperature = temperature
         self.presence_penalty = presence_penalty
         self.frequency_penalty = frequency_penalty
+        self.seed = seed
 
     def to_dict(self):
         """
@@ -216,4 +219,5 @@ class Parameters:
             "temperature": self.temperature,
             "presence_penalty": self.presence_penalty,
             "frequency_penalty": self.frequency_penalty,
+            "seed": self.seed,
         }
