@@ -516,7 +516,7 @@ async def run_request_loop(
             if time.time() - last_status_log_timestamp > 10:
                 logger.debug(
                     "%s tasks in progress. Successful tasks: %s. Failed tasks: %s. "
-                    "Rate limit errors: %s. Other errors: %s. Retry queue length: %s ."
+                    "Rate limit errors: %s. Other errors: %s. Retry queue length: %s. "
                     "Tasks not yet tried: %s. ",
                     status_tracker.num_tasks_in_progress,
                     status_tracker.num_tasks_succeeded,
@@ -680,9 +680,11 @@ class APIRequest:
                     response = await response.json()
 
                 if "error" in response:
+                    # Doesn't raise an exception, just adds the error to the result
                     logger.warning(
                         f"Request {self.task_id} failed with error {response['error']}"
                     )
+
                     status_tracker.num_api_errors += 1
                     error = response
                     if "Rate limit" in response["error"].get("message", ""):
@@ -691,6 +693,10 @@ class APIRequest:
                         status_tracker.num_api_errors -= (
                             1  # rate limit errors are counted separately
                         )
+
+                    raise ValueError(
+                        response
+                    )  # raise an exception to trigger Exception handling below
 
         except (
             Exception
