@@ -177,6 +177,8 @@ class Parameters:
             decreasing the model's likelihood to repeat the same line verbatim.
             Defaults to 0.0.
         seed: Integer seed for random number generation. Defaults to 42.
+        response_format: The format that response is returned in. Currently only 
+            "json" and None are supported. Defaults to "json".
 
     Parameters that are not listed here are not supported by this package. The
     reason is that they're not relevant for the use case of this package.
@@ -189,6 +191,7 @@ class Parameters:
         presence_penalty: float = 0.0,
         frequency_penalty: float = 0.0,
         seed: int = 42,
+        response_format: str = "json"
     ):
         if max_tokens < 1:
             raise ValueError("max_tokens must be positive")
@@ -201,23 +204,31 @@ class Parameters:
 
         if presence_penalty < -2 or presence_penalty > 2:
             raise ValueError("presence_penalty must be between -2 and 2")
+        
+        if response_format not in ["json", None]:
+            raise ValueError("response format must be either 'json' or None")
 
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.presence_penalty = presence_penalty
         self.frequency_penalty = frequency_penalty
         self.seed = seed
+        self.response_format = {"type": "json_object"} if response_format == "json" else None
 
     def to_dict(self):
         """
         Returns:
             A dictionary representation of the parameters.
         """
-
-        return {
+        
+        params = {
             "max_tokens": self.max_tokens,
             "temperature": self.temperature,
             "presence_penalty": self.presence_penalty,
             "frequency_penalty": self.frequency_penalty,
             "seed": self.seed,
         }
+        if self.response_format is not None:
+            params["response_format"] = self.response_format
+        return params
+        
