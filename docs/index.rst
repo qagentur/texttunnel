@@ -4,7 +4,7 @@
    contain the root `toctree` directive.
 
 texttunnel: Efficient text processing with GPT-3.5 and GPT-4
-======================================
+============================================================
 
 This package offers a straightforward interface for integrating the GPT-3.5 and GPT-4 models into your natural language processing pipelines. It is optimally designed for the following scenario:
 
