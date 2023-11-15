@@ -56,6 +56,14 @@ Models Module
 .. autoattribute:: texttunnel.models.GPT_3_5_TURBO_16K_0613
 .. autoattribute:: texttunnel.models.GPT_3_5_TURBO_0301
 
+Models that are not included here can be created as custom instances of the Model class. Only chat models are supported; "instruct" models are not supported.
+
+Preview models can be used, but will not be added as default models to the package. To use a preview model, create a custom instance of the Model class. Models that OpenAI deprecates will be removed from the package. This primarily affects date-versioned models.
+
+Note that the model class attributes tokens_per_minute (TPM) and requests_per_minute (RPM) are based on tier 1 usage limits. See https://platform.openai.com/docs/guides/rate-limits?context=tier-free for more details. If your account has a higher usage tier, override the class attributes with your own values.
+
+texttunnel does not track tokens_per_day (TPD) limits and assumes that it is the only process that is using your model quota.
+
 Processor Module
 ^^^^^^^^^^^^^^^^
 .. automodule:: texttunnel.processor
