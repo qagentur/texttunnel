@@ -45,7 +45,7 @@ Create an account on [OpenAI](https://openai.com) and get an API key. Set it as 
 
 Check the [examples](examples) directory for examples of how to use this package.
 
-If your account has been granted higher rate limits than the ones configured in the models module, you can override the default attributes of the Model class instances.
+If your account has been granted higher rate limits than the ones configured in the models module, you can override the default attributes of the Model class instances. See documentation of the models package module.
 
 ## Development
 

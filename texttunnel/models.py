@@ -55,7 +55,7 @@ GPT_4 = Model(
     input_token_price_per_1k=0.03,
     output_token_price_per_1k=0.06,
     tokens_per_minute=10000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 GPT_4_0613 = Model(
@@ -64,7 +64,7 @@ GPT_4_0613 = Model(
     input_token_price_per_1k=0.03,
     output_token_price_per_1k=0.06,
     tokens_per_minute=10000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 GPT_4_32K = Model(
@@ -73,7 +73,7 @@ GPT_4_32K = Model(
     input_token_price_per_1k=0.06,
     output_token_price_per_1k=0.12,
     tokens_per_minute=20000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 GPT_4_32K_0613 = Model(
@@ -82,7 +82,7 @@ GPT_4_32K_0613 = Model(
     input_token_price_per_1k=0.06,
     output_token_price_per_1k=0.12,
     tokens_per_minute=20000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 # legacy
@@ -92,7 +92,7 @@ GPT_4_0314 = Model(
     input_token_price_per_1k=0.03,
     output_token_price_per_1k=0.06,
     tokens_per_minute=10000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 # legacy
@@ -102,7 +102,7 @@ GPT_4_32K_0314 = Model(
     input_token_price_per_1k=0.06,
     output_token_price_per_1k=0.12,
     tokens_per_minute=10000,
-    requests_per_minute=200,
+    requests_per_minute=500,
 )
 
 GPT_3_5_TURBO = Model(
