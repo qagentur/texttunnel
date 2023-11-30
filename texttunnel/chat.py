@@ -1,31 +1,5 @@
-# --------------------------------------------------------------------------------
-# This file includes a function adapted from: openai-cookbook
-# Original source code: https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
-# Copyright (c) 2023 OpenAI
-
-# MIT License
-
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 import json
 from typing import Any, Callable, Dict, List, Optional
-from warnings import warn
 
 import tiktoken
 from jsonschema import Draft7Validator, exceptions
@@ -134,11 +108,7 @@ class Chat:
         """
         return [message.to_dict() for message in self.messages]
 
-    def count_tokens(
-        self,
-        model: str = "gpt-3.5-turbo-0613",
-        show_changing_model_warning: bool = False,
-    ) -> int:
+    def count_tokens(self) -> int:
         """
         Return the number of tokens used.
         Note that this depends on the model used. Models that are not versioned
@@ -147,66 +117,32 @@ class Chat:
 
         Args:
             model: The name of the model to use. Defaults to "gpt-3.5-turbo-0613".
-            show_changing_model_warning: Whether to print a warning if a model
-                is used that may change over time. Defaults to False.
 
         Returns:
             The number of tokens used.
         """
-        # This function was adapted from openai-cookbook
 
-        try:
-            encoding = tiktoken.encoding_for_model(model)
-        except KeyError:
-            if show_changing_model_warning:
-                warn(
-                    f"Warning: model {model} not found. Using cl100k_base encoding.",
-                    UserWarning,
-                )
-            encoding = tiktoken.get_encoding("cl100k_base")
+        # See reference implementation:
+        # https://github.com/openai/openai-cookbook/blob/main/examples/How_to_count_tokens_with_tiktoken.ipynb
 
-        # Map models that are not versioned with a date to a stable version
-        stable_model_mapping = {
-            "gpt-3.5-turbo": "gpt-3.5-turbo-0613",
-            "gpt-3.5-turbo-16k": "gpt-3.5-turbo-16k-0613",
-            "gpt-4": "gpt-4-0613",
-            "gpt-4-32k": "gpt-4-32k-0613",
-        }
+        # Note that the reference implementation uses varying numbers of tokens
+        # for tokens_per_message depending on model. At the time of writing,
+        # only gpt-3.5-turbo-0301 differs from the rest by one token per message.
+        # To allow any OpenAI model to be used, we use 3 tokens per message.
+        # This causes an underestimation of the token count when using gpt-3.5-turbo-0301.
 
-        if model in stable_model_mapping:
-            if show_changing_model_warning:
-                warn(
-                    f"Warning: {model} may update over time. Returning num tokens assuming {stable_model_mapping[model]}.",
-                    UserWarning,
-                )
-            model = stable_model_mapping[model]
-
-        if model in {
-            "gpt-3.5-turbo-0613",
-            "gpt-3.5-turbo-16k-0613",
-            "gpt-4-0314",
-            "gpt-4-32k-0314",
-            "gpt-4-0613",
-            "gpt-4-32k-0613",
-        }:
-            tokens_per_message = 3
-            tokens_per_name = 1
-        elif model == "gpt-3.5-turbo-0301":
-            tokens_per_message = (
-                4  # every message follows <|start|>{role/name}\n{content}<|end|>\n
-            )
-            tokens_per_name = -1  # if there's a name, the role is omitted
-        else:
-            raise NotImplementedError(
-                f"""num_tokens_from_messages() is not implemented for model {model}. See https://github.com/openai/openai-python/blob/main/chatml.md for information on how messages are converted to tokens."""
-            )
+        encoding = tiktoken.get_encoding("cl100k_base")
+        tokens_per_message = 3
+        tokens_per_name = 1
         num_tokens = 0
+
         for message in self.messages:
             num_tokens += tokens_per_message
             num_tokens += len(encoding.encode(message.content))
             if message.role == "name":
                 num_tokens += tokens_per_name
         num_tokens += 3  # every reply is primed with <|start|>assistant<|message|>
+
         return num_tokens
 
 
@@ -293,7 +229,7 @@ class ChatCompletionRequest:
         Counts the number of tokens that will be used as input to the model.
         This includes the chat messages and the function call.
         """
-        chat_tokens = self.chat.count_tokens(model=self.model.name)
+        chat_tokens = self.chat.count_tokens()
         function_tokens = utils.num_tokens_from_text(json.dumps(self.functions[0]))
 
         return chat_tokens + function_tokens
