@@ -1,5 +1,17 @@
 # Changelog for texttunnel
 
+## 0.3.5
+
+Changes:
+
+- texttunnel can now be used with any OpenAI Chat model, including your own fine-tuned models. Previously only a limited number of models were allowed due to peculiarities of token counting. This change comes at the cost of the possibility of miscounting tokens by 1 token per message in a chat, in case OpenAI changes token counting in future models. See https://github.com/qagentur/texttunnel/pull/70 for details.
+- Requests now use a seed by default, which makes the results more consistent (see https://platform.openai.com/docs/guides/text-generation/reproducible-outputs).
+
+Documentation:
+
+- Documentation for changing API quota limits has been added to Sphinx docs.
+- Documentation on texttunnel's model class support has been added to Sphinx docs.
+
 ## 0.3.4
 
 Changes:
