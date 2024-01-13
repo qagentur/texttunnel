@@ -699,10 +699,6 @@ class APIRequest:
                     else:
                         status_tracker.num_api_errors += 1
 
-                    raise ValueError(
-                        response
-                    )  # raise an exception to trigger Exception handling below
-
         except (
             Exception
         ) as e:  # catching naked exceptions is bad practice, but in this case we'll log & save them
