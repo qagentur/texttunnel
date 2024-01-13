@@ -453,14 +453,15 @@ async def run_request_loop(
     last_status_log_timestamp = time.time()
 
     while True:
-        # get next request (if one is not already waiting for capacity)
-        # check if there are requests that need to be retried
+        # get next request if one is not already waiting for capacity
         if next_request is None:
+            # retry a request if one is waiting in the retry queue
             if not retry_queue.empty():
                 next_request = retry_queue.get_nowait()
                 logger.debug(f"Retrying request {next_request.task_id}: {next_request}")
-            # check if there are requests that haven't been tried yet
-            if len(requests_queue) > 0:
+
+            # send a new request if one is waiting in the requests queue
+            elif len(requests_queue) > 0:
                 next_request = requests_queue.pop(0)
 
                 # get new request
@@ -491,14 +492,13 @@ async def run_request_loop(
 
         # if enough capacity available, call API
         if next_request:
-            next_request_tokens = next_request.token_consumption
             if (
                 available_request_capacity >= 1
-                and available_token_capacity >= next_request_tokens
+                and available_token_capacity >= next_request.token_consumption
             ):
                 # update counters
                 available_request_capacity -= 1
-                available_token_capacity -= next_request_tokens
+                available_token_capacity -= next_request.token_consumption
                 next_request.attempts_left -= 1
 
                 # call API
