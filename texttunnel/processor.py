@@ -462,13 +462,13 @@ async def run_request_loop(
 
             # send a new request if one is waiting in the requests queue
             elif len(requests_queue) > 0:
-                next_request = requests_queue.pop(0)
+                next_chat_completion = requests_queue.pop(0)
 
                 # get new request
                 next_request = APIRequest(
                     task_id=next(task_id_generator),
-                    request=next_request,
-                    token_consumption=next_request.count_total_tokens(),
+                    request=next_chat_completion,
+                    token_consumption=next_chat_completion.count_total_tokens(),
                     attempts_left=max_attempts,
                 )
                 status_tracker.num_tasks_started += 1
