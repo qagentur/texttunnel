@@ -686,19 +686,18 @@ class APIRequest:
                     response = await response.json()
 
                 if "error" in response:
-                    # Doesn't raise an exception, just adds the error to the result
+                    # API and rate limit errors don't raise an exception
+                    # They are found in the response JSON
                     logger.warning(
                         f"Request {self.task_id} failed with error {response['error']}"
                     )
 
-                    status_tracker.num_api_errors += 1
                     error = response
                     if "Rate limit" in response["error"].get("message", ""):
                         status_tracker.time_of_last_rate_limit_error = int(time.time())
                         status_tracker.num_rate_limit_errors += 1
-                        status_tracker.num_api_errors -= (
-                            1  # rate limit errors are counted separately
-                        )
+                    else:
+                        status_tracker.num_api_errors += 1
 
                     raise ValueError(
                         response
