@@ -216,7 +216,6 @@ async def aprocess_api_requests(
     throttling to stay under rate limits.
 
     Features:
-    - Streams requests from file, to avoid running out of memory for giant jobs
     - Makes requests concurrently, to maximize throughput
     - Throttles request and token usage, to stay under rate limits
     - Retries failed requests up to {max_attempts} times, to avoid missing data
@@ -310,7 +309,7 @@ async def aprocess_api_requests(
             for request in requests
         ]
 
-        logger.debug("Created cache request coroutines.")
+        logger.debug("Created cache request tasks.")
 
         cached_responses = await asyncio.gather(*tasks)
 
@@ -393,6 +392,13 @@ async def run_request_loop(
         output_filepath: The path to the file where the results will be saved.
         cache: A aiohttp_client_cache.CacheBackend object that stores API
             responses. If provided, the response will be stored in the cache.
+        max_attempts: Number of times to retry a failed request before giving up.
+        rate_limit_headroom_factor: Factor to multiply the rate limit by to
+            guarantee that the script stays under the limit.
+        api_key: API key to use. If omitted, the function will attempt to read it
+            from an environment variable OPENAI_API_KEY. If that fails, an error
+            will be raised, unless all requests are cached.
+
     """
 
     # Check that all requests use the same model. Otherwise, we can't set
