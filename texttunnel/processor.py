@@ -216,7 +216,6 @@ async def aprocess_api_requests(
     throttling to stay under rate limits.
 
     Features:
-    - Streams requests from file, to avoid running out of memory for giant jobs
     - Makes requests concurrently, to maximize throughput
     - Throttles request and token usage, to stay under rate limits
     - Retries failed requests up to {max_attempts} times, to avoid missing data
@@ -310,7 +309,7 @@ async def aprocess_api_requests(
             for request in requests
         ]
 
-        logger.debug("Created cache request coroutines.")
+        logger.debug("Created cache request tasks.")
 
         cached_responses = await asyncio.gather(*tasks)
 
@@ -393,6 +392,13 @@ async def run_request_loop(
         output_filepath: The path to the file where the results will be saved.
         cache: A aiohttp_client_cache.CacheBackend object that stores API
             responses. If provided, the response will be stored in the cache.
+        max_attempts: Number of times to retry a failed request before giving up.
+        rate_limit_headroom_factor: Factor to multiply the rate limit by to
+            guarantee that the script stays under the limit.
+        api_key: API key to use. If omitted, the function will attempt to read it
+            from an environment variable OPENAI_API_KEY. If that fails, an error
+            will be raised, unless all requests are cached.
+
     """
 
     # Check that all requests use the same model. Otherwise, we can't set
@@ -447,21 +453,22 @@ async def run_request_loop(
     last_status_log_timestamp = time.time()
 
     while True:
-        # get next request (if one is not already waiting for capacity)
-        # check if there are requests that need to be retried
+        # get next request if one is not already waiting for capacity
         if next_request is None:
+            # retry a request if one is waiting in the retry queue
             if not retry_queue.empty():
                 next_request = retry_queue.get_nowait()
                 logger.debug(f"Retrying request {next_request.task_id}: {next_request}")
-            # check if there are requests that haven't been tried yet
-            if len(requests_queue) > 0:
-                next_request = requests_queue.pop(0)
+
+            # send a new request if one is waiting in the requests queue
+            elif len(requests_queue) > 0:
+                next_chat_completion = requests_queue.pop(0)
 
                 # get new request
                 next_request = APIRequest(
                     task_id=next(task_id_generator),
-                    request=next_request,
-                    token_consumption=next_request.count_total_tokens(),
+                    request=next_chat_completion,
+                    token_consumption=next_chat_completion.count_total_tokens(),
                     attempts_left=max_attempts,
                 )
                 status_tracker.num_tasks_started += 1
@@ -485,14 +492,13 @@ async def run_request_loop(
 
         # if enough capacity available, call API
         if next_request:
-            next_request_tokens = next_request.token_consumption
             if (
                 available_request_capacity >= 1
-                and available_token_capacity >= next_request_tokens
+                and available_token_capacity >= next_request.token_consumption
             ):
                 # update counters
                 available_request_capacity -= 1
-                available_token_capacity -= next_request_tokens
+                available_token_capacity -= next_request.token_consumption
                 next_request.attempts_left -= 1
 
                 # call API
@@ -680,23 +686,18 @@ class APIRequest:
                     response = await response.json()
 
                 if "error" in response:
-                    # Doesn't raise an exception, just adds the error to the result
+                    # API and rate limit errors don't raise an exception
+                    # They are found in the response JSON
                     logger.warning(
                         f"Request {self.task_id} failed with error {response['error']}"
                     )
 
-                    status_tracker.num_api_errors += 1
                     error = response
                     if "Rate limit" in response["error"].get("message", ""):
                         status_tracker.time_of_last_rate_limit_error = int(time.time())
                         status_tracker.num_rate_limit_errors += 1
-                        status_tracker.num_api_errors -= (
-                            1  # rate limit errors are counted separately
-                        )
-
-                    raise ValueError(
-                        response
-                    )  # raise an exception to trigger Exception handling below
+                    else:
+                        status_tracker.num_api_errors += 1
 
         except (
             Exception

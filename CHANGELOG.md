@@ -1,5 +1,11 @@
 # Changelog for texttunnel
 
+## 0.3.6
+
+Bug fixes:
+
+- Fixed a bug that caused retry requests to be overwritten by new requests in `aprocess_api_requests`.
+
 ## 0.3.5
 
 Changes:
