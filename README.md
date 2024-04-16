@@ -8,18 +8,18 @@ This package offers a straightforward interface for integrating the GPT-3.5 and 
 
 Suppose you possess a corpus of text data that you want to analyze using the GPT-3.5 or GPT-4 models. The goal is to perform extractive NLP tasks such as classification, named entity recognition, translation, summarization, question answering, or sentiment analysis. In this context, the package prioritizes efficiency and tidiness to provide you streamlined results.
 
-🚧 When updating the package please check the [changelog](/CHANGELOG.md) for breaking changes. 🚧
-
 Features:
 
 - 📄 Output Schema: Utilizes [JSON Schema](https://json-schema.org) alongside OpenAI's function calling schema to define the output data structure.
 - ✔️ Input Validation: Ensures well-structured and error-free API requests by validating input data.
 - ✅ Output Validation: Checks the response data from OpenAI's API against the expected schema to maintain data integrity.
+- 🚦 Asynchronous Requests: Facilitates speedy data processing by sending simultaneous requests to OpenAI's API, while staying within API rate limits.
 - 🚀 Efficient Batching: Supports bulk processing by packing multiple input texts into a single request for the OpenAI's API.
-- 🚦 Asynchronous Requests: Facilitates speedy data processing by sending simultaneous requests to OpenAI's API, while maintaining API rate limits.
 - 💰 Cost Estimation: Aims for transparency in API utilization cost by providing cost estimates before sending API requests.
 - 💾 Caching: Uses [aiohttp_client_cache](https://github.com/requests-cache/aiohttp-client-cache) to avoid redundant requests and reduce cost by caching previous requests. Supports SQLite, MongoDB, DynamoDB and Redis cache backends.
 - 📝 Request Logging: Implements Python's native [logging](https://docs.python.org/3/library/logging.html) framework for tracking and logging all API requests.
+
+Note that this package only works with [function calling](https://platform.openai.com/docs/guides/function-calling) and only with the OpenAI API. If you're looking for a more flexible solution, consider [instructor](https://github.com/jxnl/instructor) and [litellm](https://github.com/BerriAI/litellm). You might also consider using the [OpenAI Batch API](https://platform.openai.com/docs/api-reference/batch) as it offers savings compared to synchronous API calls.
 
 ## Installation
 
