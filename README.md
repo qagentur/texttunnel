@@ -21,6 +21,8 @@ Features:
 
 Note that this package only works with [function calling](https://platform.openai.com/docs/guides/function-calling) and only with the OpenAI API. If you're looking for a more flexible solution, consider [instructor](https://github.com/jxnl/instructor) and [litellm](https://github.com/BerriAI/litellm). You might also consider using the [OpenAI Batch API](https://platform.openai.com/docs/api-reference/batch) as it offers savings compared to synchronous API calls.
 
+⚠️ **Maintenance mode**: At this time no new features or enhancements are being developed. Only critical bugfixes will be made.
+
 ## Installation
 
 The package is available on [PyPI](https://pypi.org/project/texttunnel/). To install it, run:
