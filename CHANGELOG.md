@@ -1,5 +1,10 @@
 # Changelog for texttunnel
 
+## 0.3.7
+
+- Added model configurations for gpt-4-turbo and gpt-4o (note that users can add their own model configurations too)
+- Added an example for named entity recognition
+
 ## 0.3.6
 
 Bug fixes:

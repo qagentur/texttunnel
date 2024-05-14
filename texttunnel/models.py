@@ -44,10 +44,29 @@ class Model:
                 raise ValueError(f"{arg} must be positive")
 
 
-# Look up information on models, pricing and rate limits:
+# Look up information on models, pricing and rate limits
+# Note that tokens_per_minute and requests_per_minute differ by usage tier
 # https://platform.openai.com/docs/models/overview
 # https://openai.com/pricing
-# https://platform.openai.com/account/rate-limits
+# https://platform.openai.com/docs/guides/rate-limits/usage-tiers
+
+GPT_4o = Model(
+    name="gpt-4o",
+    context_size=128000,
+    input_token_price_per_1k=0.005,
+    output_token_price_per_1k=0.0015,
+    tokens_per_minute=30000,
+    requests_per_minute=500,
+)
+
+GPT_4_TURBO = Model(
+    name="gpt-4-turbo",
+    context_size=128000,
+    input_token_price_per_1k=0.01,
+    output_token_price_per_1k=0.03,
+    tokens_per_minute=30000,
+    requests_per_minute=500,
+)
 
 GPT_4 = Model(
     name="gpt-4",
